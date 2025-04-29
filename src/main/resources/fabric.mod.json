@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "namedloot",
+	"version": "${version}",
+	"name": "NamedLoot",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/namedloot/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.namedloot.NamedLoot"
+		],
+		"client": [
+			"com.namedloot.NamedLootClient"
+		]
+	},
+	"mixins": [
+		"namedloot.mixins.json",
+		{
+			"config": "namedloot.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.15.11",
+		"minecraft": ">=1.21 <1.21.6",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
