@@ -3,7 +3,8 @@
 	"package": "com.namedloot.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ExampleClientMixin"
+		"ExampleClientMixin",
+		"ItemEntityRenderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

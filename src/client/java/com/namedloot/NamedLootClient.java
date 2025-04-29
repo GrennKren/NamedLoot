@@ -6,5 +6,6 @@ public class NamedLootClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		// This entrypoint is suitable for setting up client-specific logic, such as rendering.
+		NamedLoot.LOGGER.info("Initializing NamedLoot client features");
 	}
 }
