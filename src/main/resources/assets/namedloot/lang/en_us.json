@@ -1,0 +1,18 @@
+{
+  "text.namedloot.config": "NamedLoot Configuration",
+  "options.namedloot.vertical_offset": "Vertical Offset: %s",
+  "options.namedloot.display_distance": "Display Distance: %s",
+  "options.namedloot.text_format": "Text Format:",
+  "options.namedloot.name_color": "Item Name Color:",
+  "options.namedloot.name_red": "Red: %d",
+  "options.namedloot.name_green": "Green: %d",
+  "options.namedloot.name_blue": "Blue: %d",
+  "options.namedloot.name_alpha": "Alpha: %d",
+  "options.namedloot.count_color": "Count Color:",
+  "options.namedloot.count_red": "Red: %d",
+  "options.namedloot.count_green": "Green: %d",
+  "options.namedloot.count_blue": "Blue: %d",
+  "options.namedloot.count_alpha": "Alpha: %d",
+  "options.namedloot.reset": "Reset",
+  "options.namedloot.reset_colors": "Reset Colors"
+}

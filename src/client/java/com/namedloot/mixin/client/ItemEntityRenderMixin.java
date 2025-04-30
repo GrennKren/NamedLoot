@@ -1,11 +1,14 @@
 package com.namedloot.mixin.client;
 
+import com.namedloot.NamedLootClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.ItemEntityRenderer;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.client.font.TextRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,37 +28,97 @@ public abstract class ItemEntityRenderMixin extends EntityRenderer<ItemEntity> {
     @Inject(method = "render(Lnet/minecraft/entity/ItemEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("TAIL"))
     private void renderItemName(ItemEntity itemEntity, float f, float g, MatrixStack matrixStack,
                                 VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci) {
+        MinecraftClient client = MinecraftClient.getInstance();
+
+        // Check distance if configured
+        if (NamedLootClient.CONFIG.displayDistance > 0) {
+            double distance = client.gameRenderer.getCamera().getPos().distanceTo(itemEntity.getPos());
+            if (distance > NamedLootClient.CONFIG.displayDistance) {
+                return;
+            }
+        }
+
         // Get item count
         int count = itemEntity.getStack().getCount();
 
-        // Create text to display (item name x count)
-        String displayText = itemEntity.getStack().getName().getString();
-        if (count > 1) {
-            displayText += " x" + count;
+        // Get the name
+        String itemName = itemEntity.getStack().getName().getString();
+        String countText = String.valueOf(count);
+
+        // Create text components with appropriate styles
+        // Set name color
+        int nameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
+        int nameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
+        int nameBlue = (int)(NamedLootClient.CONFIG.nameBlue * 255);
+        int nameColor = (nameRed << 16) | (nameGreen << 8) | nameBlue;
+
+        // Set count color
+        int countRed = (int)(NamedLootClient.CONFIG.countRed * 255);
+        int countGreen = (int)(NamedLootClient.CONFIG.countGreen * 255);
+        int countBlue = (int)(NamedLootClient.CONFIG.countBlue * 255);
+        int countColor = (countRed << 16) | (countGreen << 8) | countBlue;
+
+        // Create the formatted text
+        MutableText formattedText = Text.literal("");
+
+        // Get the format string and process it correctly
+        String format = NamedLootClient.CONFIG.textFormat;
+
+        // Split by {name} and {count} placeholders
+        // This approach processes the format string in segments
+        int currentIndex = 0;
+        int nameIndex, countIndex;
+
+        while (currentIndex < format.length()) {
+            nameIndex = format.indexOf("{name}", currentIndex);
+            countIndex = format.indexOf("{count}", currentIndex);
+
+            // Find which comes first
+            if (nameIndex == -1 && countIndex == -1) {
+                // No more placeholders, add remaining text
+                formattedText.append(Text.literal(format.substring(currentIndex)));
+                break;
+            } else if (nameIndex != -1 && (countIndex == -1 || nameIndex < countIndex)) {
+                // Name comes next
+                // Add text before the placeholder
+                if (nameIndex > currentIndex) {
+                    formattedText.append(Text.literal(format.substring(currentIndex, nameIndex)));
+                }
+                // Add the name with its color
+                formattedText.append(Text.literal(itemName).setStyle(Style.EMPTY.withColor(nameColor)));
+                currentIndex = nameIndex + 6; // Skip over "{name}"
+            } else {
+                // Count comes next
+                // Add text before the placeholder
+                if (countIndex > currentIndex) {
+                    formattedText.append(Text.literal(format.substring(currentIndex, countIndex)));
+                }
+                // Add the count with its color
+                formattedText.append(Text.literal(countText).setStyle(Style.EMPTY.withColor(countColor)));
+                currentIndex = countIndex + 7; // Skip over "{count}"
+            }
         }
 
         // Render text above item
         matrixStack.push();
 
-        // Position the text above the item
-        matrixStack.translate(0, itemEntity.getHeight() + 0.5F, 0);
+        // Position the text with configurable offset
+        matrixStack.translate(0, itemEntity.getHeight() + NamedLootClient.CONFIG.verticalOffset, 0);
 
-        // Get the camera direction to make text face the player
-        // This rotates the text to face the camera
-        MinecraftClient client = MinecraftClient.getInstance();
+        // Make text face the camera
         float cameraYaw = client.gameRenderer.getCamera().getYaw();
         float cameraPitch = client.gameRenderer.getCamera().getPitch();
 
         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-cameraYaw));
         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cameraPitch));
 
-        // Scale the text appropriately
+        // Scale the text
         matrixStack.scale(-0.025F, -0.025F, 0.025F);
 
         TextRenderer textRenderer = this.getTextRenderer();
-        float textOffset = -textRenderer.getWidth(displayText) / 2.0F;
+        float textOffset = -textRenderer.getWidth(formattedText) / 2.0F;
 
-        textRenderer.draw(Text.of(displayText), textOffset, 0, 0xFFFFFFFF,
+        textRenderer.draw(formattedText, textOffset, 0, 0xFFFFFFFF,
                 false, matrixStack.peek().getPositionMatrix(),
                 vertexConsumerProvider, TextRenderer.TextLayerType.NORMAL,
                 0x00000000, i);

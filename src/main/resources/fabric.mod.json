@@ -20,6 +20,9 @@
 		],
 		"client": [
 			"com.namedloot.NamedLootClient"
+		],
+		"modmenu": [
+			"com.namedloot.config.NamedLootModMenu"
 		]
 	},
 	"mixins": [
