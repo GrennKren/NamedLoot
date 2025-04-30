@@ -5,6 +5,8 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.ItemEntityRenderer;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.state.EntityRenderState;
+import net.minecraft.client.render.entity.state.ItemEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.text.MutableText;
@@ -12,6 +14,7 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.client.font.TextRenderer;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,30 +22,44 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.RotationAxis;
 
 @Mixin(ItemEntityRenderer.class)
-public abstract class ItemEntityRenderMixin extends EntityRenderer<ItemEntity> {
+public abstract class ItemEntityRenderMixin extends EntityRenderer<ItemEntity, EntityRenderState> {
+
+    @Unique
+    private ItemEntity capturedItemEntity = null;
 
     protected ItemEntityRenderMixin(EntityRendererFactory.Context ctx) {
         super(ctx);
     }
 
-    @Inject(method = "render(Lnet/minecraft/entity/ItemEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("TAIL"))
-    private void renderItemName(ItemEntity itemEntity, float f, float g, MatrixStack matrixStack,
-                                VertexConsumerProvider vertexConsumerProvider, int i, CallbackInfo ci) {
+    @Inject(method = "updateRenderState*", at = @At("TAIL"))
+    private void captureItemEntity(ItemEntity itemEntity, ItemEntityRenderState state, float tickDelta, CallbackInfo ci) {
+        // Simpan referensi entity jika diperlukan untuk render kustom.
+        this.capturedItemEntity = itemEntity;
+    }
+
+
+    @Inject(method = "render*", at = @At("TAIL"))
+    private void renderItemName(ItemEntityRenderState state, MatrixStack matrixStack,
+                                VertexConsumerProvider vertexConsumerProvider, int light, CallbackInfo ci) {
+        if (this.capturedItemEntity == null) {
+            return;
+        }
+
         MinecraftClient client = MinecraftClient.getInstance();
 
         // Check distance if configured
         if (NamedLootClient.CONFIG.displayDistance > 0) {
-            double distance = client.gameRenderer.getCamera().getPos().distanceTo(itemEntity.getPos());
+            double distance = client.gameRenderer.getCamera().getPos().distanceTo(this.capturedItemEntity.getPos());
             if (distance > NamedLootClient.CONFIG.displayDistance) {
                 return;
             }
         }
 
         // Get item count
-        int count = itemEntity.getStack().getCount();
+        int count = this.capturedItemEntity.getStack().getCount();
 
         // Get the name
-        String itemName = itemEntity.getStack().getName().getString();
+        String itemName = this.capturedItemEntity.getStack().getName().getString();
         String countText = String.valueOf(count);
 
         // Create text components with appropriate styles
@@ -103,7 +120,7 @@ public abstract class ItemEntityRenderMixin extends EntityRenderer<ItemEntity> {
         matrixStack.push();
 
         // Position the text with configurable offset
-        matrixStack.translate(0, itemEntity.getHeight() + NamedLootClient.CONFIG.verticalOffset, 0);
+        matrixStack.translate(0, this.capturedItemEntity.getHeight() + NamedLootClient.CONFIG.verticalOffset, 0);
 
         // Make text face the camera
         float cameraYaw = client.gameRenderer.getCamera().getYaw();
@@ -121,7 +138,7 @@ public abstract class ItemEntityRenderMixin extends EntityRenderer<ItemEntity> {
         textRenderer.draw(formattedText, textOffset, 0, 0xFFFFFFFF,
                 false, matrixStack.peek().getPositionMatrix(),
                 vertexConsumerProvider, TextRenderer.TextLayerType.NORMAL,
-                0x00000000, i);
+                0x00000000, light);
 
         matrixStack.pop();
     }
