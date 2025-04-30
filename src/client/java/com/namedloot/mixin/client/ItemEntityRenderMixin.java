@@ -130,15 +130,24 @@ public abstract class ItemEntityRenderMixin extends EntityRenderer<ItemEntity, E
         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(cameraPitch));
 
         // Scale the text
-        matrixStack.scale(-0.025F, -0.025F, 0.025F);
+        matrixStack.scale(-0.025F, -0.025F, -0.025F);
 
         TextRenderer textRenderer = this.getTextRenderer();
         float textOffset = -textRenderer.getWidth(formattedText) / 2.0F;
 
-        textRenderer.draw(formattedText, textOffset, 0, 0xFFFFFFFF,
-                false, matrixStack.peek().getPositionMatrix(),
-                vertexConsumerProvider, TextRenderer.TextLayerType.NORMAL,
-                0x00000000, light);
+// Then overlay the same text without background to ensure visibility
+        textRenderer.draw(
+                formattedText,
+                textOffset,
+                0,
+                0xFFFFFFFF,
+                false,
+                matrixStack.peek().getPositionMatrix(),
+                vertexConsumerProvider,
+                TextRenderer.TextLayerType.NORMAL,
+                0x50000000, // No background
+                light
+        );
 
         matrixStack.pop();
     }
