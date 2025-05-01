@@ -1,7 +1,5 @@
 package com.namedloot;
 
-import com.namedloot.NamedLootClient;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
