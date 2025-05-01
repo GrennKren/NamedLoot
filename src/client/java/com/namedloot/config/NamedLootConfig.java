@@ -25,6 +25,30 @@ public class NamedLootConfig {
     public float countGreen = 1.0F;
     public float countBlue = 1.0F;
 
+    // New configs for text styling
+
+    // Text formatting
+    public boolean useManualFormatting = false;
+    public boolean overrideItemColors = false;
+
+    // Text styles for name
+    public boolean nameBold = false;
+    public boolean nameItalic = false;
+    public boolean nameUnderline = false;
+    public boolean nameStrikethrough = false;
+
+    // Text styles for count
+    public boolean countBold = false;
+    public boolean countItalic = false;
+    public boolean countUnderline = false;
+    public boolean countStrikethrough = false;
+
+    // Background and rendering options
+    public boolean useBackgroundColor = false;
+    public int backgroundColor = 0x80000000; // Semi-transparent black
+    public boolean useSeeThrough = true;
+    public boolean showDetails = false;
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final File CONFIG_FILE = new File("config/namedloot.json");
 
