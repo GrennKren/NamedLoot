@@ -11,6 +11,9 @@ public class NamedLootClient implements ClientModInitializer {
 		// Load config
 		CONFIG = NamedLootConfig.load();
 
+		// Register the world render event handler for AFTER_ENTITIES events
+		WorldRenderEventHandler.registerEvents();
+
 		// This entrypoint is suitable for setting up client-specific logic, such as rendering.
 		NamedLoot.LOGGER.info("Initializing NamedLoot client features");
 	}
