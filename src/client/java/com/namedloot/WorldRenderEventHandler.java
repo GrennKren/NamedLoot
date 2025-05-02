@@ -14,6 +14,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Rarity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Box;
@@ -92,12 +95,10 @@ public class WorldRenderEventHandler {
 
         if (NamedLootClient.CONFIG.useManualFormatting) {
             // Use manual formatting with & codes
-            String itemName = entity.getStack().getName().getString();
-            formattedText = parseFormattedText(NamedLootClient.CONFIG.textFormat, itemName, countText);
+            formattedText = parseFormattedText(NamedLootClient.CONFIG.textFormat, entity.getStack(), countText);
         } else {
             // Use our custom styling
-            String itemName = entity.getStack().getName().getString();
-            formattedText = createAutomaticFormattedText(itemName, countText);
+            formattedText = createAutomaticFormattedText(entity.getStack(), countText);
         }
 
         // Rest of the method remains unchanged
@@ -209,15 +210,15 @@ public class WorldRenderEventHandler {
         buffer.vertex(matrix, x2, y1, -1).color(color);
     }
 
-    private static MutableText createAutomaticFormattedText(String itemName, String countText) {
+    private static MutableText createAutomaticFormattedText(ItemStack itemStack, String countText) {
         MutableText formattedText = Text.literal("");
         String format = NamedLootClient.CONFIG.textFormat;
 
-        // Set name color
-        int nameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
-        int nameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
-        int nameBlue = (int)(NamedLootClient.CONFIG.nameBlue * 255);
-        int nameColor = (nameRed << 16) | (nameGreen << 8) | nameBlue;
+        // Set name color dari konfigurasi (akan dipakai bila kondisi tidak memenuhi)
+        int configNameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
+        int configNameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
+        int configNameBlue = (int)(NamedLootClient.CONFIG.nameBlue * 255);
+        int configNameColor = (configNameRed << 16) | (configNameGreen << 8) | configNameBlue;
 
         // Set count color
         int countRed = (int)(NamedLootClient.CONFIG.countRed * 255);
@@ -225,97 +226,175 @@ public class WorldRenderEventHandler {
         int countBlue = (int)(NamedLootClient.CONFIG.countBlue * 255);
         int countColor = (countRed << 16) | (countGreen << 8) | countBlue;
 
-        // Process format string in segments
         int currentIndex = 0;
-        int nameIndex, countIndex;
-
         while (currentIndex < format.length()) {
-            nameIndex = format.indexOf("{name}", currentIndex);
-            countIndex = format.indexOf("{count}", currentIndex);
+            int nameIndex = format.indexOf("{name}", currentIndex);
+            int countIndex = format.indexOf("{count}", currentIndex);
 
-            // Find which comes first
+            // Jika tidak ada placeholder lagi, tambahkan sisa literal text
             if (nameIndex == -1 && countIndex == -1) {
-                // No more placeholders, add remaining text
                 formattedText.append(Text.literal(format.substring(currentIndex)));
                 break;
             } else if (nameIndex != -1 && (countIndex == -1 || nameIndex < countIndex)) {
-                // Name comes next
-                // Add text before the placeholder
+                // Tambahkan literal text sebelum placeholder {name}
                 if (nameIndex > currentIndex) {
                     formattedText.append(Text.literal(format.substring(currentIndex, nameIndex)));
                 }
 
-                // Create style with all enabled formatting options for name
-                Style nameStyle = Style.EMPTY.withColor(nameColor);
-                if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
-                if (NamedLootClient.CONFIG.nameItalic) nameStyle = nameStyle.withItalic(true);
-                if (NamedLootClient.CONFIG.nameUnderline) nameStyle = nameStyle.withUnderline(true);
-                if (NamedLootClient.CONFIG.nameStrikethrough) nameStyle = nameStyle.withStrikethrough(true);
+                // Tangani placeholder {name} sesuai aturan
+                if (!NamedLootClient.CONFIG.overrideItemColors) {
+                    Text formattedName = itemStack.getFormattedName();
+                    TextColor existingColor = formattedName.getStyle().getColor();
 
-                // Add the name with its style
-                formattedText.append(Text.literal(itemName).setStyle(nameStyle));
-                currentIndex = nameIndex + 6; // Skip over "{name}"
+                    if (existingColor != TextColor.fromFormatting(Formatting.WHITE) && !itemStack.getRarity().equals(Rarity.COMMON)) {
+                        formattedText.append(formattedName);
+                    } else {
+                        String plainName = itemStack.getName().getString();
+                        Style nameStyle = Style.EMPTY.withColor(configNameColor);
+                        if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
+                        if (NamedLootClient.CONFIG.nameItalic) nameStyle = nameStyle.withItalic(true);
+                        if (NamedLootClient.CONFIG.nameUnderline) nameStyle = nameStyle.withUnderline(true);
+                        if (NamedLootClient.CONFIG.nameStrikethrough) nameStyle = nameStyle.withStrikethrough(true);
+                        formattedText.append(Text.literal(plainName).setStyle(nameStyle));
+                    }
+                } else {
+                    // Jika override aktif, gunakan style dari konfigurasi langsung
+                    String plainName = itemStack.getName().getString();
+                    Style nameStyle = Style.EMPTY.withColor(configNameColor);
+                    if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
+                    if (NamedLootClient.CONFIG.nameItalic) nameStyle = nameStyle.withItalic(true);
+                    if (NamedLootClient.CONFIG.nameUnderline) nameStyle = nameStyle.withUnderline(true);
+                    if (NamedLootClient.CONFIG.nameStrikethrough) nameStyle = nameStyle.withStrikethrough(true);
+                    formattedText.append(Text.literal(plainName).setStyle(nameStyle));
+                }
+                currentIndex = nameIndex + "{name}".length();
             } else {
-                // Count comes next
-                // Add text before the placeholder
+                // Tangani placeholder {count}
                 if (countIndex > currentIndex) {
                     formattedText.append(Text.literal(format.substring(currentIndex, countIndex)));
                 }
-
-                // Create style with all enabled formatting options for count
                 Style countStyle = Style.EMPTY.withColor(countColor);
                 if (NamedLootClient.CONFIG.countBold) countStyle = countStyle.withBold(true);
                 if (NamedLootClient.CONFIG.countItalic) countStyle = countStyle.withItalic(true);
                 if (NamedLootClient.CONFIG.countUnderline) countStyle = countStyle.withUnderline(true);
                 if (NamedLootClient.CONFIG.countStrikethrough) countStyle = countStyle.withStrikethrough(true);
-
-                // Add the count with its style
                 formattedText.append(Text.literal(countText).setStyle(countStyle));
-                currentIndex = countIndex + 7; // Skip over "{count}"
+                currentIndex = countIndex + "{count}".length();
             }
         }
 
         return formattedText;
     }
 
+    private static String[] splitByPlaceholder(String input) {
+        String[] result = new String[3];
+        String placeholder = "{name}";
+
+        int placeholderIndex = input.indexOf(placeholder);
+        if (placeholderIndex == -1) {
+            // Placeholder tidak ditemukan
+            result[0] = "";
+            result[1] = "";
+            result[2] = input;
+            return result;
+        }
+
+        // Bagian sebelum placeholder
+        result[0] = input.substring(0, placeholderIndex);
+
+        // Placeholder itu sendiri
+        result[1] = placeholder;
+
+        // Bagian setelah placeholder
+        String afterPlaceholder = input.substring(placeholderIndex + placeholder.length());
+
+        // Ekstrak semua karakter format '&n' dari bagian pertama
+        StringBuilder formatChars = new StringBuilder();
+        for (int i = 0; i < result[0].length(); i++) {
+            if (result[0].charAt(i) == '&' && i + 1 < result[0].length()) {
+                char next = result[0].charAt(i + 1);
+                if (isSpecialChar(next)) {
+                    formatChars.append("&").append(next);
+                    i++; // Skip karakter berikutnya karena sudah diproses
+                }
+            }
+        }
+
+        result[2] = formatChars.toString() + afterPlaceholder;
+
+        return result;
+    }
+
+    private static boolean isSpecialChar(char c) {
+        String specialChars = "0123456789abcdefklmnor";
+        return specialChars.indexOf(c) != -1;
+    }
+
     // New method to parse manual formatting with & codes
-    private static MutableText parseFormattedText(String format, String itemName, String countText) {
+    private static MutableText parseFormattedText(String format, ItemStack itemStack, String countText) {
         MutableText result = Text.literal("");
-
-        // Replace placeholders with actual values
-        String text = format.replace("{name}", itemName).replace("{count}", countText);
-
         int currentIndex = 0;
-        int formatIndex;
 
-        // Parse the format codes
-        while (currentIndex < text.length()) {
-            formatIndex = text.indexOf('&', currentIndex);
+        // System.out.println(" ");
+        // System.out.println("Nama Item : " + itemStack.getFormattedName().getString());
+        // System.out.println("itemStack.getFormattedName().getStyle() : " + itemStack.getFormattedName().getStyle());
+        // System.out.println("itemStack.getName().getStyle() : " + itemStack.getName().getStyle());
+        // System.out.println("itemStack.getCustomName().getStyle() : " + (itemStack.getCustomName() != null ? itemStack.getCustomName().getStyle() : "null"));
+        // System.out.println("itemStack.getRarity() : " + itemStack.getRarity());
+        // Loop untuk mencari placeholder {name} dan menangani sisanya secara literal
+        if(!NamedLootClient.CONFIG.overrideItemColors){
+            String[] parts = splitByPlaceholder(format);
+            if(itemStack.getName().getStyle().getColor() != null ){
+                result.append(parseAmpersand(parts[0]));
+                result.append(itemStack.getFormattedName());
+            }else{
+                if(itemStack.getRarity().equals(Rarity.COMMON)){
+                    result.append(parseAmpersand(parts[0]+parts[1].replace("{name}", itemStack.getName().getString())));
+                }else {
+                    result.append(parseAmpersand(parts[0]));
+                    result.append(itemStack.getFormattedName());
+                }
+            }
 
+            result.append(parseAmpersand(parts[2].replace("{count}", countText)));
+        }else{
+            // Jika overrideItemColors == true, gunakan style berdasarkan konfigurasi tanpa pemeriksaan tambahan
+            String plainName = NamedLootClient.CONFIG.textFormat.replace("{name}", itemStack.getName().getString()).replace("{count}", countText);
+            result.append(parseAmpersand(plainName));
+        }
+
+
+        return result;
+    }
+
+
+
+
+    private static MutableText parseAmpersand(String textSegment) {
+        MutableText segmentResult = Text.literal("");
+        int currentIndex = 0;
+
+        while (currentIndex < textSegment.length()) {
+            int formatIndex = textSegment.indexOf('&', currentIndex);
             if (formatIndex == -1) {
-                // No more format codes, add remaining text
-                result.append(Text.literal(text.substring(currentIndex)));
+                segmentResult.append(Text.literal(textSegment.substring(currentIndex)));
                 break;
             }
 
-            // Add text before the format code
             if (formatIndex > currentIndex) {
-                result.append(Text.literal(text.substring(currentIndex, formatIndex)));
+                segmentResult.append(Text.literal(textSegment.substring(currentIndex, formatIndex)));
             }
 
-            // Make sure we have a character after the &
-            if (formatIndex + 1 >= text.length()) {
-                result.append(Text.literal("&"));
+            // Pastikan terdapat karakter setelah '&'
+            if (formatIndex + 1 >= textSegment.length()) {
+                segmentResult.append(Text.literal("&"));
                 break;
             }
 
-            // Get the format code and apply it
-            char formatCode = text.charAt(formatIndex + 1);
+            char formatCode = textSegment.charAt(formatIndex + 1);
             Style style = Style.EMPTY;
 
-            // Check if this is a valid format code
             switch (formatCode) {
-                // Colors
                 case '0': style = Style.EMPTY.withColor(0x000000); break; // Black
                 case '1': style = Style.EMPTY.withColor(0x0000AA); break; // Dark Blue
                 case '2': style = Style.EMPTY.withColor(0x00AA00); break; // Dark Green
@@ -332,38 +411,29 @@ public class WorldRenderEventHandler {
                 case 'd': style = Style.EMPTY.withColor(0xFF55FF); break; // Light Purple
                 case 'e': style = Style.EMPTY.withColor(0xFFFF55); break; // Yellow
                 case 'f': style = Style.EMPTY.withColor(0xFFFFFF); break; // White
-
-                // Formatting
                 case 'l': style = Style.EMPTY.withBold(true); break;
                 case 'm': style = Style.EMPTY.withStrikethrough(true); break;
                 case 'n': style = Style.EMPTY.withUnderline(true); break;
                 case 'o': style = Style.EMPTY.withItalic(true); break;
                 case 'r': style = Style.EMPTY; break; // Reset
-
-                // Invalid format code, include the & in the output
                 default:
-                    result.append(Text.literal("&"));
+                    // Jika kode tidak valid, masukkan '&' lalu lanjutkan
+                    segmentResult.append(Text.literal("&"));
                     currentIndex = formatIndex + 1;
                     continue;
             }
 
-            // Find the next formatting code or the end of the string
-            int nextFormatIndex = text.indexOf('&', formatIndex + 2);
+            int nextFormatIndex = textSegment.indexOf('&', formatIndex + 2);
             if (nextFormatIndex == -1) {
-                nextFormatIndex = text.length();
+                nextFormatIndex = textSegment.length();
             }
 
-            // Add the text with the formatting applied
-            String formattedSection = text.substring(formatIndex + 2, nextFormatIndex);
-            result.append(Text.literal(formattedSection).setStyle(style));
-
-            // Move to the next format code
+            String formattedSection = textSegment.substring(formatIndex + 2, nextFormatIndex);
+            segmentResult.append(Text.literal(formattedSection).setStyle(style));
             currentIndex = nextFormatIndex;
         }
 
-        return result;
+        return segmentResult;
     }
-
-
 
 }

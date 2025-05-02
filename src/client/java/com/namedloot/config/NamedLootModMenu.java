@@ -522,8 +522,6 @@ public class NamedLootModMenu implements ModMenuApi {
         // Add a new method to ensure the scrollOffset is valid based on current dimensions
         private void validateScrollOffset() {
             int visibleHeight = this.height - 50;
-            System.out.println("visibleHeight : " + visibleHeight);
-            System.out.println("scrollOffset : " + scrollOffset);
             if (scrollOffset > 0) {
                 scrollOffset = 0;
             } else if (contentHeight <= visibleHeight) {
