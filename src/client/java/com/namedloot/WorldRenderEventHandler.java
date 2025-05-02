@@ -3,7 +3,6 @@ package com.namedloot;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -96,7 +95,6 @@ public class WorldRenderEventHandler {
         if (NamedLootClient.CONFIG.useManualFormatting) {
             // Use manual formatting with & codes
             formattedText = parseFormattedText(NamedLootClient.CONFIG.textFormat, entity.getStack(), countText);
-            //formattedText = parseFormattedTextOptimized(NamedLootClient.CONFIG.textFormat, entity.getStack(), countText);
         } else {
             // Use our custom styling
             formattedText = createAutomaticFormattedText(entity.getStack(), countText);
@@ -289,7 +287,7 @@ public class WorldRenderEventHandler {
                 }
                 currentIndex = nextPlaceholderIndex + "{name}".length();
 
-            } else if ("count".equals(placeholderType)) {
+            } else {
                 // Tangani placeholder {count}
                 Style countStyle = Style.EMPTY.withColor(countColor);
                 if (NamedLootClient.CONFIG.countBold) countStyle = countStyle.withBold(true);
@@ -304,336 +302,92 @@ public class WorldRenderEventHandler {
         return formattedText;
     }
 
-    private static String[] splitByPlaceholder(String input) {
-        String[] result = new String[3];
-        String placeholder = "{name}";
-
-        int placeholderIndex = input.indexOf(placeholder);
-        if (placeholderIndex == -1) {
-            // Placeholder tidak ditemukan
-            result[0] = "";
-            result[1] = "";
-            result[2] = input;
-            return result;
-        }
-
-        // Bagian sebelum placeholder
-        result[0] = input.substring(0, placeholderIndex);
-
-        // Placeholder itu sendiri
-        result[1] = placeholder;
-
-        // Bagian setelah placeholder
-        String afterPlaceholder = input.substring(placeholderIndex + placeholder.length());
-
-        // Ekstrak semua karakter format '&n' dari bagian pertama
-        StringBuilder formatChars = new StringBuilder();
-        for (int i = 0; i < result[0].length(); i++) {
-            if (result[0].charAt(i) == '&' && i + 1 < result[0].length()) {
-                char next = result[0].charAt(i + 1);
-                if (isSpecialChar(next)) {
-                    formatChars.append("&").append(next);
-                    i++; // Skip karakter berikutnya karena sudah diproses
-                }
-            }
-        }
-
-        result[2] = formatChars.toString() + afterPlaceholder;
-
-        return result;
-    }
-
-    private static boolean isSpecialChar(char c) {
-        String specialChars = "0123456789abcdefklmnor";
-        return specialChars.indexOf(c) != -1;
-    }
-
-    // New method to parse manual formatting with & codes
     private static MutableText parseFormattedText(String format, ItemStack itemStack, String countText) {
         MutableText result = Text.literal("");
-        int currentIndex = 0;
+        Style currentStyle = Style.EMPTY;
+        StringBuilder currentSegment = new StringBuilder();
 
-        // System.out.println(" ");
-        // System.out.println("Nama Item : " + itemStack.getFormattedName().getString());
-        // System.out.println("itemStack.getFormattedName().getStyle() : " + itemStack.getFormattedName().getStyle());
-        // System.out.println("itemStack.getName().getStyle() : " + itemStack.getName().getStyle());
-        // System.out.println("itemStack.getCustomName().getStyle() : " + (itemStack.getCustomName() != null ? itemStack.getCustomName().getStyle() : "null"));
-        // System.out.println("itemStack.getRarity() : " + itemStack.getRarity());
-        // Loop untuk mencari placeholder {name} dan menangani sisanya secara literal
-        if(!NamedLootClient.CONFIG.overrideItemColors){
-            String[] parts = splitByPlaceholder(format);
-            if(itemStack.getName().getStyle().getColor() != null ){
-                result.append(parseAmpersand(parts[0]));
-                result.append(itemStack.getFormattedName());
-            }else{
-                if(itemStack.getRarity().equals(Rarity.COMMON)){
-                    result.append(parseAmpersand(parts[0]+parts[1].replace("{name}", itemStack.getName().getString())));
-                }else {
-                    result.append(parseAmpersand(parts[0]));
-                    result.append(itemStack.getFormattedName());
+        for (int i = 0; i < format.length(); i++) {
+            char c = format.charAt(i);
+
+            // Handle ampersand formatting codes
+            if (c == '&' && i + 1 < format.length()) {
+                if (!currentSegment.isEmpty()) {
+                    result.append(Text.literal(currentSegment.toString()).setStyle(currentStyle));
+                    currentSegment.setLength(0);
                 }
+                currentStyle = applyFormatCode(currentStyle, format.charAt(++i));
+                continue;
             }
 
-            result.append(parseAmpersand(parts[2].replace("{count}", countText)));
-        }else{
-            // Jika overrideItemColors == true, gunakan style berdasarkan konfigurasi tanpa pemeriksaan tambahan
-            String plainName = NamedLootClient.CONFIG.textFormat.replace("{name}", itemStack.getName().getString()).replace("{count}", countText);
-            result.append(parseAmpersand(plainName));
-        }
+            // Check for placeholder start
+            if (c == '{') {
+                int placeholderEnd = format.indexOf('}', i);
+                if (placeholderEnd != -1) {
+                    String placeholder = format.substring(i, placeholderEnd + 1);
 
+                    // Handle placeholder
+                    if (placeholder.equals("{name}")) {
+                        result.append(Text.literal(currentSegment.toString()).setStyle(currentStyle));
+                        currentSegment.setLength(0);
 
-        return result;
-    }
-
-    // New method to parse manual formatting with & codes
-    private static MutableText parseFormattedTextOptimized(String format, ItemStack itemStack, String countText) {
-        MutableText result = Text.literal("");
-        Style currentStyle = Style.EMPTY; // Menyimpan style saat ini, terakumulasi dari kode format
-
-        int currentIndex = 0;
-        while (currentIndex < format.length()) {
-            int nextAmpersand = format.indexOf('&', currentIndex);
-            int nextNamePlaceholder = format.indexOf("{name}", currentIndex);
-            int nextCountPlaceholder = format.indexOf("{count}", currentIndex);
-
-            // Tentukan event terdekat (kode format, placeholder nama, atau placeholder jumlah)
-            int nextEventIndex = format.length(); // Default ke akhir string
-            String eventType = "end";
-
-            // Prioritaskan ampersand jika valid
-            if (nextAmpersand != -1 && nextAmpersand < nextEventIndex) {
-                // Pastikan ada karakter setelah '&' dan itu adalah kode format yang valid
-                if (nextAmpersand + 1 < format.length() && isSpecialChar(format.charAt(nextAmpersand + 1))) {
-                    nextEventIndex = nextAmpersand;
-                    eventType = "format";
-                } else {
-                    // Jika '&' bukan kode format valid, anggap sebagai literal.
-                    // Lanjutkan pencarian dari karakter setelah '&' yang tidak valid
-                    // untuk menemukan event berikutnya.
-                    int searchFrom = nextAmpersand + 1;
-                    nextAmpersand = format.indexOf('&', searchFrom); // Cari ampersand valid berikutnya setelah yang tidak valid
-
-                    if (nextAmpersand != -1 && nextAmpersand < nextEventIndex) {
-                        nextEventIndex = nextAmpersand;
-                        eventType = "format";
-                    }
-                    // Jika tidak ada ampersand valid lagi, placeholder bisa menjadi event berikutnya
-                    // Logika ini sudah dicakup oleh pemeriksaan placeholder di bawah
-                }
-            }
-            // Periksa placeholder jika tidak ada ampersand yang lebih dekat atau tidak ada ampersand valid
-            if (nextNamePlaceholder != -1 && nextNamePlaceholder < nextEventIndex) {
-                nextEventIndex = nextNamePlaceholder;
-                eventType = "name";
-            }
-            if (nextCountPlaceholder != -1 && nextCountPlaceholder < nextEventIndex) {
-                nextEventIndex = nextCountPlaceholder;
-                eventType = "count";
-            }
-
-
-            // 1. Tambahkan teks literal sebelum event terdekat DENGAN currentStyle
-            if (nextEventIndex > currentIndex) {
-                result.append(Text.literal(format.substring(currentIndex, nextEventIndex)).setStyle(currentStyle));
-            }
-
-            // 2. Proses event terdekat
-            switch (eventType) {
-                case "format":
-                    // Terapkan style baru dari kode format dan PERBARUI currentStyle
-                    char formatCode = format.charAt(nextEventIndex + 1);
-                    currentStyle = applyAmpersandStyle(currentStyle, formatCode); // currentStyle diupdate di sini
-                    currentIndex = nextEventIndex + 2; // Lewati '&' dan kodenya
-                    break;
-
-                case "name":
-                    // Tangani placeholder {name}.
-                    if (!NamedLootClient.CONFIG.overrideItemColors) {
-                        TextColor existingColor = itemStack.getName().getStyle().getColor();
-                        boolean isCommon = itemStack.getRarity().equals(Rarity.COMMON);
-
-                        // Logika seperti parseFormattedText sebelumnya:
-                        // Jika nama item punya warna bawaan (bukan null/putih) ATAU rarity BUKAN COMMON,
-                        // tambahkan itemStack.getFormattedName() apa adanya.
-                        // Ampersand style sebelumnya hanya berlaku untuk teks sebelum ini.
-                        if (existingColor != null && existingColor != TextColor.fromFormatting(Formatting.WHITE) || !isCommon) {
-                            result.append(itemStack.getFormattedName());
+                        MutableText nameText;
+                        if (!NamedLootClient.CONFIG.overrideItemColors &&
+                                (itemStack.getName().getStyle().getColor() != null ||
+                                        !itemStack.getRarity().equals(Rarity.COMMON))) {
+                            nameText = itemStack.getFormattedName().copy();
                         } else {
-                            // Jika tidak ada warna bawaan (atau putih) DAN rarity COMMON,
-                            // gunakan nama plain dengan style yang menggabungkan currentStyle
-                            // dan style dari konfigurasi nama.
-                            String plainName = itemStack.getName().getString();
-                            // Gunakan style dari config sebagai 'anak' agar menimpa warna default,
-                            // tetapi warisi format dari ampersand ('induk').
-                            Style nameSegmentStyle = getManualNameStyle().withParent(currentStyle);
-                            result.append(Text.literal(plainName).setStyle(nameSegmentStyle));
+                            nameText = Text.literal(itemStack.getName().getString()).setStyle(currentStyle);
                         }
-                    } else {
-                        // Jika override aktif, selalu gunakan nama plain dengan style
-                        // yang menggabungkan currentStyle dan style dari konfigurasi nama.
-                        String plainName = itemStack.getName().getString();
-                        // Gunakan style dari config sebagai 'anak' agar menimpa warna default,
-                        // tetapi warisi format dari ampersand ('induk').
-                        Style nameSegmentStyle = getManualNameStyle().withParent(currentStyle);
-                        result.append(Text.literal(plainName).setStyle(nameSegmentStyle));
+                        result.append(nameText);
+                        i = placeholderEnd;
+                        continue;
+                    } else if (placeholder.equals("{count}")) {
+                        result.append(Text.literal(currentSegment.toString()).setStyle(currentStyle));
+                        currentSegment.setLength(0);
+                        result.append(Text.literal(countText).setStyle(currentStyle));
+                        i = placeholderEnd;
+                        continue;
                     }
-                    currentIndex = nextEventIndex + "{name}".length();
-                    // currentStyle tidak diubah di sini, agar style dari format code SEBELUM {name}
-                    // tetap berlaku untuk teks SETELAH {name} jika tidak ada format code lain.
-                    break;
-
-                case "count":
-                    // Tangani placeholder {count}.
-                    Style countSegmentStyle;
-
-                    if (!NamedLootClient.CONFIG.overrideItemColors) {
-                        // Jika tidak override, jumlah hanya mewarisi currentStyle
-                        countSegmentStyle = currentStyle;
-                    } else {
-                        // Jika override aktif, gunakan style dari konfigurasi jumlah dan gabungkan dengan currentStyle
-                        // Gunakan style dari config sebagai 'anak' agar menimpa warna default,
-                        // tetapi warisi format dari ampersand ('induk').
-                        countSegmentStyle = getManualCountStyle().withParent(currentStyle);
-                    }
-                    // Tambahkan teks jumlah dengan style yang sudah digabungkan
-                    result.append(Text.literal(countText).setStyle(countSegmentStyle));
-                    currentIndex = nextEventIndex + "{count}".length();
-                    // currentStyle tidak diubah di sini
-                    break;
-
-                case "end":
-                default:
-                    // Akhir string atau tidak ada event lagi
-                    currentIndex = format.length();
-                    break;
+                }
             }
+
+            currentSegment.append(c);
+        }
+
+        // Add remaining text
+        if (!currentSegment.isEmpty()) {
+            result.append(Text.literal(currentSegment.toString()).setStyle(currentStyle));
         }
 
         return result;
     }
 
-    // Fungsi helper untuk menerapkan style dari kode ampersand (Tidak berubah)
-    private static Style applyAmpersandStyle(Style baseStyle, char formatCode) {
-        switch (formatCode) {
-            case '0': return baseStyle.withColor(0x000000); // Black
-            case '1': return baseStyle.withColor(0x0000AA); // Dark Blue
-            case '2': return baseStyle.withColor(0x00AA00); // Dark Green
-            case '3': return baseStyle.withColor(0x00AAAA); // Dark Aqua
-            case '4': return baseStyle.withColor(0xAA0000); // Dark Red
-            case '5': return baseStyle.withColor(0xAA00AA); // Dark Purple
-            case '6': return baseStyle.withColor(0xFFAA00); // Gold
-            case '7': return baseStyle.withColor(0xAAAAAA); // Gray
-            case '8': return baseStyle.withColor(0x555555); // Dark Gray
-            case '9': return baseStyle.withColor(0x5555FF); // Blue
-            case 'a': return baseStyle.withColor(0x55FF55); // Green
-            case 'b': return baseStyle.withColor(0x55FFFF); // Aqua
-            case 'c': return baseStyle.withColor(0xFF5555); // Red
-            case 'd': return baseStyle.withColor(0xFF55FF); // Light Purple
-            case 'e': return baseStyle.withColor(0xFFFF55); // Yellow
-            case 'f': return baseStyle.withColor(0xFFFFFF); // White
-            case 'l': return baseStyle.withBold(true);
-            case 'm': return baseStyle.withStrikethrough(true);
-            case 'n': return baseStyle.withUnderline(true);
-            case 'o': return baseStyle.withItalic(true);
-            case 'r': return Style.EMPTY; // Reset semua style
-            default:  return baseStyle; // Kode tidak valid, jangan ubah style
-        }
-    }
-
-    // Helper untuk mendapatkan style manual dari config (Ini tetap sama)
-    private static Style getManualNameStyle() {
-        int configNameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
-        int configNameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
-        int configNameBlue = (int)(NamedLootClient.CONFIG.nameBlue * 255);
-        int configNameColor = (configNameRed << 16) | (configNameGreen << 8) | configNameBlue;
-
-        Style nameStyle = Style.EMPTY.withColor(TextColor.fromRgb(configNameColor)); // Gunakan fromRgb
-        if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
-        if (NamedLootClient.CONFIG.nameItalic) nameStyle = nameStyle.withItalic(true);
-        if (NamedLootClient.CONFIG.nameUnderline) nameStyle = nameStyle.withUnderline(true);
-        if (NamedLootClient.CONFIG.nameStrikethrough) nameStyle = nameStyle.withStrikethrough(true);
-        return nameStyle;
-    }
-
-    // Helper untuk mendapatkan style manual count dari config (Ini tetap sama)
-    private static Style getManualCountStyle() {
-        int countRed = (int)(NamedLootClient.CONFIG.countRed * 255);
-        int countGreen = (int)(NamedLootClient.CONFIG.countGreen * 255);
-        int countBlue = (int)(NamedLootClient.CONFIG.countBlue * 255);
-        int countColor = (countRed << 16) | (countGreen << 8) | countBlue;
-
-        Style countStyle = Style.EMPTY.withColor(TextColor.fromRgb(countColor)); // Gunakan fromRgb
-        if (NamedLootClient.CONFIG.countBold) countStyle = countStyle.withBold(true);
-        if (NamedLootClient.CONFIG.countItalic) countStyle = countStyle.withItalic(true);
-        if (NamedLootClient.CONFIG.countUnderline) countStyle = countStyle.withUnderline(true);
-        if (NamedLootClient.CONFIG.countStrikethrough) countStyle = countStyle.withStrikethrough(true);
-        return countStyle;
-    }
-
-    private static MutableText parseAmpersand(String textSegment) {
-        MutableText segmentResult = Text.literal("");
-        int currentIndex = 0;
-
-        while (currentIndex < textSegment.length()) {
-            int formatIndex = textSegment.indexOf('&', currentIndex);
-            if (formatIndex == -1) {
-                segmentResult.append(Text.literal(textSegment.substring(currentIndex)));
-                break;
-            }
-
-            if (formatIndex > currentIndex) {
-                segmentResult.append(Text.literal(textSegment.substring(currentIndex, formatIndex)));
-            }
-
-            // Pastikan terdapat karakter setelah '&'
-            if (formatIndex + 1 >= textSegment.length()) {
-                segmentResult.append(Text.literal("&"));
-                break;
-            }
-
-            char formatCode = textSegment.charAt(formatIndex + 1);
-            Style style = Style.EMPTY;
-
-            switch (formatCode) {
-                case '0': style = Style.EMPTY.withColor(0x000000); break; // Black
-                case '1': style = Style.EMPTY.withColor(0x0000AA); break; // Dark Blue
-                case '2': style = Style.EMPTY.withColor(0x00AA00); break; // Dark Green
-                case '3': style = Style.EMPTY.withColor(0x00AAAA); break; // Dark Aqua
-                case '4': style = Style.EMPTY.withColor(0xAA0000); break; // Dark Red
-                case '5': style = Style.EMPTY.withColor(0xAA00AA); break; // Dark Purple
-                case '6': style = Style.EMPTY.withColor(0xFFAA00); break; // Gold
-                case '7': style = Style.EMPTY.withColor(0xAAAAAA); break; // Gray
-                case '8': style = Style.EMPTY.withColor(0x555555); break; // Dark Gray
-                case '9': style = Style.EMPTY.withColor(0x5555FF); break; // Blue
-                case 'a': style = Style.EMPTY.withColor(0x55FF55); break; // Green
-                case 'b': style = Style.EMPTY.withColor(0x55FFFF); break; // Aqua
-                case 'c': style = Style.EMPTY.withColor(0xFF5555); break; // Red
-                case 'd': style = Style.EMPTY.withColor(0xFF55FF); break; // Light Purple
-                case 'e': style = Style.EMPTY.withColor(0xFFFF55); break; // Yellow
-                case 'f': style = Style.EMPTY.withColor(0xFFFFFF); break; // White
-                case 'l': style = Style.EMPTY.withBold(true); break;
-                case 'm': style = Style.EMPTY.withStrikethrough(true); break;
-                case 'n': style = Style.EMPTY.withUnderline(true); break;
-                case 'o': style = Style.EMPTY.withItalic(true); break;
-                case 'r': style = Style.EMPTY; break; // Reset
-                default:
-                    // Jika kode tidak valid, masukkan '&' lalu lanjutkan
-                    segmentResult.append(Text.literal("&"));
-                    currentIndex = formatIndex + 1;
-                    continue;
-            }
-
-            int nextFormatIndex = textSegment.indexOf('&', formatIndex + 2);
-            if (nextFormatIndex == -1) {
-                nextFormatIndex = textSegment.length();
-            }
-
-            String formattedSection = textSegment.substring(formatIndex + 2, nextFormatIndex);
-            segmentResult.append(Text.literal(formattedSection).setStyle(style));
-            currentIndex = nextFormatIndex;
-        }
-
-        return segmentResult;
+    private static Style applyFormatCode(Style currentStyle, char code) {
+        return switch (code) {
+            case '0' -> currentStyle.withColor(TextColor.fromRgb(0x000000));
+            case '1' -> currentStyle.withColor(TextColor.fromRgb(0x0000AA));
+            case '2' -> currentStyle.withColor(TextColor.fromRgb(0x00AA00));
+            case '3' -> currentStyle.withColor(TextColor.fromRgb(0x00AAAA));
+            case '4' -> currentStyle.withColor(TextColor.fromRgb(0xAA0000));
+            case '5' -> currentStyle.withColor(TextColor.fromRgb(0xAA00AA));
+            case '6' -> currentStyle.withColor(TextColor.fromRgb(0xFFAA00));
+            case '7' -> currentStyle.withColor(TextColor.fromRgb(0xAAAAAA));
+            case '8' -> currentStyle.withColor(TextColor.fromRgb(0x555555));
+            case '9' -> currentStyle.withColor(TextColor.fromRgb(0x5555FF));
+            case 'a' -> currentStyle.withColor(TextColor.fromRgb(0x55FF55));
+            case 'b' -> currentStyle.withColor(TextColor.fromRgb(0x55FFFF));
+            case 'c' -> currentStyle.withColor(TextColor.fromRgb(0xFF5555));
+            case 'd' -> currentStyle.withColor(TextColor.fromRgb(0xFF55FF));
+            case 'e' -> currentStyle.withColor(TextColor.fromRgb(0xFFFF55));
+            case 'f' -> currentStyle.withColor(TextColor.fromRgb(0xFFFFFF));
+            case 'l' -> currentStyle.withBold(true);
+            case 'm' -> currentStyle.withStrikethrough(true);
+            case 'n' -> currentStyle.withUnderline(true);
+            case 'o' -> currentStyle.withItalic(true);
+            case 'r' -> Style.EMPTY;
+            default -> currentStyle;
+        };
     }
 
 }
