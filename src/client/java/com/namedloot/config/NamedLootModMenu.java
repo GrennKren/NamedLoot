@@ -268,14 +268,14 @@ public class NamedLootModMenu implements ModMenuApi {
                     }).dimensions(this.width / 2 + 105, ref.yPos, 40, 20).build());
             ref.yPos += 30;
 
-            // Format preview
-            String previewText = NamedLootClient.CONFIG.useManualFormatting ?
-                    "Preview: " + NamedLootClient.CONFIG.textFormat.replace("{name}", "Diamond").replace("{count}", "64") :
-                    "Preview: Diamond x64";
-            this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                    Text.literal(previewText),
-                    this.width / 2 - 100, ref.yPos, 0xFFFFFF));
-            ref.yPos += 30;
+           // // Format preview
+           // String previewText = NamedLootClient.CONFIG.useManualFormatting ?
+           //         "Preview: " + NamedLootClient.CONFIG.textFormat.replace("{name}", "Diamond").replace("{count}", "64") :
+           //         "Preview: Diamond x64";
+           // this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
+           //         Text.literal(previewText),
+           //         this.width / 2 - 100, ref.yPos, 0xFFFFFF));
+           // ref.yPos += 30;
 
             // If manual formatting is enabled, we show the color code reference
             if (NamedLootClient.CONFIG.useManualFormatting) {
@@ -663,7 +663,7 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             // Fix the format preview text position
-            int formatPreviewY = yBase + 26 + scrollOffset; // Move it near the top so it's visible
+            int formatPreviewY = yBase + 254 + scrollOffset; // Move it near the top so it's visible
 
             // Only render the preview if it's in the visible area
             if (formatPreviewY > 25 && formatPreviewY < this.height - 25) {
@@ -671,8 +671,8 @@ public class NamedLootModMenu implements ModMenuApi {
                 MutableText previewText = createPreviewText();
 
                 // Draw the preview text in a dedicated box that won't overlap with other elements
-                context.fill(this.width / 2 - 100, formatPreviewY - 2,
-                        this.width / 2 + 100, formatPreviewY + 12, 0x40000000);
+                context.fill(this.width / 2 - 100, formatPreviewY - 5,
+                        this.width / 2 + 100, formatPreviewY + 15, 0x40000000);
 
                 context.drawCenteredTextWithShadow(
                         this.textRenderer,
