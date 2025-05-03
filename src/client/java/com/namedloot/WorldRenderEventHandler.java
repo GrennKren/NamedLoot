@@ -209,7 +209,7 @@ public class WorldRenderEventHandler {
         buffer.vertex(matrix, x2, y1, -1).color(color);
     }
 
-    private static MutableText createAutomaticFormattedText(ItemStack itemStack, String countText) {
+    public static MutableText createAutomaticFormattedText(ItemStack itemStack, String countText) {
         MutableText formattedText = Text.literal("");
         String format = NamedLootClient.CONFIG.textFormat;
 
@@ -302,7 +302,7 @@ public class WorldRenderEventHandler {
         return formattedText;
     }
 
-    private static MutableText parseFormattedText(String format, ItemStack itemStack, String countText) {
+    public static MutableText parseFormattedText(String format, ItemStack itemStack, String countText) {
         MutableText result = Text.literal("");
         Style currentStyle = Style.EMPTY;
         StringBuilder currentSegment = new StringBuilder();

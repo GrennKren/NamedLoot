@@ -19,6 +19,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.nbt.NbtCompound;
 import com.namedloot.NamedLootClient;
+import com.namedloot.WorldRenderEventHandler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -377,7 +378,7 @@ public class NamedLootModMenu implements ModMenuApi {
                             Text.literal("Reset")), leftX, colorY, 0xFFFFFF);
                 });
 
-                yPos += 140; // Add space for all the color codes
+                yPos += 170; // Add space for all the color codes
             } else {
                 // ==========================================================
                 // NAME COLOR SECTION (only if not using manual formatting)
@@ -743,149 +744,23 @@ public class NamedLootModMenu implements ModMenuApi {
 
         // Create a separate method for generating the preview text
         private MutableText createPreviewText() {
-            MutableText previewText = Text.literal("");
+            // Create example ItemStack for preview
+            ItemStack previewItem = new ItemStack(net.minecraft.item.Items.DIAMOND);
+            previewItem.setCount(64);
 
+            // Use the same text formatting methods as in WorldRenderEventHandler for consistency
             if (NamedLootClient.CONFIG.useManualFormatting) {
-                // For manual formatting, use the parsing method
-                String format = NamedLootClient.CONFIG.textFormat;
-                format = format.replace("{name}", "Diamond").replace("{count}", "64");
-
-                // Apply formatting codes
-                int currentIndex = 0;
-                int formatIndex;
-
-                while (currentIndex < format.length()) {
-                    formatIndex = format.indexOf('&', currentIndex);
-
-                    if (formatIndex == -1) {
-                        // No more format codes, add remaining text
-                        previewText.append(Text.literal(format.substring(currentIndex)));
-                        break;
-                    }
-
-                    // Add text before the format code
-                    if (formatIndex > currentIndex) {
-                        previewText.append(Text.literal(format.substring(currentIndex, formatIndex)));
-                    }
-
-                    // Make sure we have a character after the &
-                    if (formatIndex + 1 >= format.length()) {
-                        previewText.append(Text.literal("&"));
-                        break;
-                    }
-
-                    // Get the format code
-                    char formatCode = format.charAt(formatIndex + 1);
-                    Formatting mcFormat = null;
-
-                    // Map the format code to MC's Formatting enum
-                    switch (formatCode) {
-                        case '0': mcFormat = Formatting.BLACK; break;
-                        case '1': mcFormat = Formatting.DARK_BLUE; break;
-                        case '2': mcFormat = Formatting.DARK_GREEN; break;
-                        case '3': mcFormat = Formatting.DARK_AQUA; break;
-                        case '4': mcFormat = Formatting.DARK_RED; break;
-                        case '5': mcFormat = Formatting.DARK_PURPLE; break;
-                        case '6': mcFormat = Formatting.GOLD; break;
-                        case '7': mcFormat = Formatting.GRAY; break;
-                        case '8': mcFormat = Formatting.DARK_GRAY; break;
-                        case '9': mcFormat = Formatting.BLUE; break;
-                        case 'a': mcFormat = Formatting.GREEN; break;
-                        case 'b': mcFormat = Formatting.AQUA; break;
-                        case 'c': mcFormat = Formatting.RED; break;
-                        case 'd': mcFormat = Formatting.LIGHT_PURPLE; break;
-                        case 'e': mcFormat = Formatting.YELLOW; break;
-                        case 'f': mcFormat = Formatting.WHITE; break;
-                        case 'l': mcFormat = Formatting.BOLD; break;
-                        case 'm': mcFormat = Formatting.STRIKETHROUGH; break;
-                        case 'n': mcFormat = Formatting.UNDERLINE; break;
-                        case 'o': mcFormat = Formatting.ITALIC; break;
-                        case 'r': mcFormat = Formatting.RESET; break;
-                    }
-
-                    // Find the next formatting code or the end of the string
-                    int nextFormatIndex = format.indexOf('&', formatIndex + 2);
-                    if (nextFormatIndex == -1) {
-                        nextFormatIndex = format.length();
-                    }
-
-                    // Add the text with the formatting applied
-                    String formattedSection = format.substring(formatIndex + 2, nextFormatIndex);
-                    previewText.append(mcFormat == null ?
-                            Text.literal("&" + formatCode + formattedSection) :
-                            Text.literal(formattedSection).formatted(mcFormat));
-
-                    // Move to the next format code
-                    currentIndex = nextFormatIndex;
-                }
+                // For manual formatting, use the same parsing method
+                return WorldRenderEventHandler.parseFormattedText(
+                        NamedLootClient.CONFIG.textFormat,
+                        previewItem,
+                        String.valueOf(previewItem.getCount()));
             } else {
-                // For automatic coloring, create a preview with the configured styles
-                String format = NamedLootClient.CONFIG.textFormat;
-
-                // Process format string in segments
-                int currentIndex = 0;
-                int nameIndex, countIndex;
-
-                while (currentIndex < format.length()) {
-                    nameIndex = format.indexOf("{name}", currentIndex);
-                    countIndex = format.indexOf("{count}", currentIndex);
-
-                    // Find which comes first
-                    if (nameIndex == -1 && countIndex == -1) {
-                        // No more placeholders, add remaining text
-                        previewText.append(Text.literal(format.substring(currentIndex)));
-                        break;
-                    } else if (nameIndex != -1 && (countIndex == -1 || nameIndex < countIndex)) {
-                        // Name comes next
-                        // Add text before the placeholder
-                        if (nameIndex > currentIndex) {
-                            previewText.append(Text.literal(format.substring(currentIndex, nameIndex)));
-                        }
-
-                        // Get name color
-                        int nameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
-                        int nameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
-                        int nameBlue = (int)(NamedLootClient.CONFIG.nameBlue * 255);
-                        int nameColor = (nameRed << 16) | (nameGreen << 8) | nameBlue;
-
-                        // Create style with all enabled formatting options for name
-                        Style nameStyle = Style.EMPTY.withColor(nameColor);
-                        if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
-                        if (NamedLootClient.CONFIG.nameItalic) nameStyle = nameStyle.withItalic(true);
-                        if (NamedLootClient.CONFIG.nameUnderline) nameStyle = nameStyle.withUnderline(true);
-                        if (NamedLootClient.CONFIG.nameStrikethrough) nameStyle = nameStyle.withStrikethrough(true);
-
-                        // Add the name with its style
-                        previewText.append(Text.literal("Diamond").setStyle(nameStyle));
-                        currentIndex = nameIndex + 6; // Skip over "{name}"
-                    } else {
-                        // Count comes next
-                        // Add text before the placeholder
-                        if (countIndex > currentIndex) {
-                            previewText.append(Text.literal(format.substring(currentIndex, countIndex)));
-                        }
-
-                        // Get count color
-                        int countRed = (int)(NamedLootClient.CONFIG.countRed * 255);
-                        int countGreen = (int)(NamedLootClient.CONFIG.countGreen * 255);
-                        int countBlue = (int)(NamedLootClient.CONFIG.countBlue * 255);
-                        int countColor = (countRed << 16) | (countGreen << 8) | countBlue;
-
-                        // Create style with all enabled formatting options for count
-                        Style countStyle = Style.EMPTY.withColor(countColor);
-                        if (NamedLootClient.CONFIG.countBold) countStyle = countStyle.withBold(true);
-                        if (NamedLootClient.CONFIG.countItalic) countStyle = countStyle.withItalic(true);
-                        if (NamedLootClient.CONFIG.countUnderline) countStyle = countStyle.withUnderline(true);
-                        if (NamedLootClient.CONFIG.countStrikethrough) countStyle = countStyle.withStrikethrough(true);
-
-                        // Add the count with its style
-                        previewText.append(Text.literal("64").setStyle(countStyle));
-                        currentIndex = countIndex + 7; // Skip over "{count}"
-                    }
-                }
+                // For automatic coloring, use the same formatting method
+                return WorldRenderEventHandler.createAutomaticFormattedText(
+                        previewItem,
+                        String.valueOf(previewItem.getCount()));
             }
-
-            return previewText;
         }
 
         // Helper method to draw a color preview with borders and optional transparency grid
