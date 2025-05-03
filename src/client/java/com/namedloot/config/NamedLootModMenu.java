@@ -49,8 +49,11 @@ public class NamedLootModMenu implements ModMenuApi {
         private int yBase;// = this.height / 8;
         private int yPos;// = yBase + scrollOffset;
 
+        private int nameColorLabelYPos;
+        private int countColorLabelYPos;
         private int textFormatLabelYPos;
         private int formatDescriptionYPos;
+
 
         public NamedLootConfigScreen(Screen parent) {
             super(Text.translatable("text.namedloot.config"));
@@ -61,12 +64,7 @@ public class NamedLootModMenu implements ModMenuApi {
         protected void init() {
             this.yBase = this.height / 8;
             this.yPos = yBase + scrollOffset;
-            // System.out.println("this.height : " + this.height);
-            // System.out.println("height : " + height);
-            // System.out.println("yBase : " + yBase);
-            // System.out.println("scrollOffset : " + scrollOffset);
-            // System.out.println("yPos : " + yPos);
-            // System.out.println(" ");
+
             // Handle window resizing by adjusting scroll offset
             if (previousHeight != 0 && previousHeight != this.height) {
                 // Ensure the scroll offset doesn't create empty space at the bottom after resize
@@ -80,10 +78,6 @@ public class NamedLootModMenu implements ModMenuApi {
             // Store the current height for future comparison
             previousHeight = this.height;
 
-            // We need to update the contentHeight field, not create a local variable
-            // that shadows the class field
-            // Replace: final int contentHeight = 650; 
-            // With proper assignment to the class field:
             this.contentHeight = 650;
 
             // Original init code continues
@@ -384,9 +378,10 @@ public class NamedLootModMenu implements ModMenuApi {
                 // NAME COLOR SECTION (only if not using manual formatting)
                 // ==========================================================
 
+                this.nameColorLabelYPos = yPos;
                 this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
                         Text.translatable("options.namedloot.name_color"),
-                        this.width / 2 - 100, yPos, 0xFFFFFF));
+                        this.width / 2 - 100, nameColorLabelYPos, 0xFFFFFF));
                 yPos += 16;
 
                 // Name style options
@@ -454,9 +449,10 @@ public class NamedLootModMenu implements ModMenuApi {
                 // COUNT COLOR SECTION (only if not using manual formatting)
                 // ==========================================================
 
+                this.countColorLabelYPos = yPos;
                 this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
                         Text.translatable("options.namedloot.count_color"),
-                        this.width / 2 - 100, yPos, 0xFFFFFF));
+                        this.width / 2 - 100, countColorLabelYPos, 0xFFFFFF));
                 yPos += 16;
 
                 // Count style options
@@ -690,13 +686,12 @@ public class NamedLootModMenu implements ModMenuApi {
             context.fill(this.width - 10, scrollbarY, this.width - 6, scrollbarY + scrollbarHeight, 0x80FFFFFF);
         }
 
-        // Separate method to render color previews - this helps ensure they always appear on top
-        // Update renderColorPreviews to include text format preview
+        // Separate method to render color previews
         private void renderColorPreviews(DrawContext context) {
             // Only show color previews if not using manual formatting
             if (!NamedLootClient.CONFIG.useManualFormatting) {
                 // Render name color preview
-                int namePreviewY = yPos; //;+ 223  + scrollOffset;
+                int namePreviewY = nameColorLabelYPos + 88;
                 // Name color
                 int nameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
                 int nameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
@@ -708,7 +703,7 @@ public class NamedLootModMenu implements ModMenuApi {
                 }
 
                 // Render count color preview
-                int countPreviewY = yPos;// + 247 + scrollOffset;
+                int countPreviewY = countColorLabelYPos + 88;
                 // Count color
                 int countRed = (int)(NamedLootClient.CONFIG.countRed * 255);
                 int countGreen = (int)(NamedLootClient.CONFIG.countGreen * 255);
