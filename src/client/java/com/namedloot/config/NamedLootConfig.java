@@ -14,7 +14,7 @@ public class NamedLootConfig {
     public float verticalOffset = 0.5F;
     public float displayDistance = 0.0F; // 0 means unlimited
     public String textFormat = "{name} x{count}";
-    public String manualTextFormat = "{name} x{count}"; // Nilai default manual yang sesuai, misalnya bisa diubah nanti
+    public String manualTextFormat = "{name} x{count}"; // Default manual value that can be changed later
     public String automaticTextFormat = "{name} x{count}";
 
     // Colors for item name (white default)
@@ -52,6 +52,9 @@ public class NamedLootConfig {
     public int detailBackgroundColor = 0x80000000; // Semi-transparent black for details
     public boolean useSeeThrough = true;
     public boolean showDetails = false;
+
+    // Hover options
+    public boolean showNameOnHover = false; // New option for showing names only on hover
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final File CONFIG_FILE = new File("config/namedloot.json");

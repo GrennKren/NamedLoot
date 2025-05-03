@@ -7,7 +7,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -40,6 +39,8 @@ public class NamedLootModMenu implements ModMenuApi {
         private int countColorLabelYPos;
         private int textFormatLabelYPos;
         private int formatDescriptionYPos;
+
+        //private CheckboxWidget showNameOnHoverCheckbox;
 
         public NamedLootConfigScreen(Screen parent) {
             super(Text.translatable("text.namedloot.config"));
@@ -137,12 +138,12 @@ public class NamedLootModMenu implements ModMenuApi {
             this.addDrawableChild(ButtonWidget.builder(
                     Text.translatable("options.namedloot.manual_formatting",
                             NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"), button -> {
-                        // Jika manual formatting sedang aktif, simpan nilai manual dan pulihkan nilai otomatis
+                        // If manual formatting is active, save the manual value and restore the automatic value
                         if (NamedLootClient.CONFIG.useManualFormatting) {
                             NamedLootClient.CONFIG.manualTextFormat = NamedLootClient.CONFIG.textFormat;
                             NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.automaticTextFormat;
                         } else {
-                            // Jika manual formatting tidak aktif, simpan nilai otomatis dan pulihkan nilai manual
+                            // If manual formatting is not active, save the automatic value and restore the manual value
                             NamedLootClient.CONFIG.automaticTextFormat = NamedLootClient.CONFIG.textFormat;
                             NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.manualTextFormat;
                         }
@@ -170,6 +171,17 @@ public class NamedLootModMenu implements ModMenuApi {
                         NamedLootClient.CONFIG.showDetails = !NamedLootClient.CONFIG.showDetails;
                         button.setMessage(Text.translatable("options.namedloot.show_details",
                                 NamedLootClient.CONFIG.showDetails ? "ON" : "OFF"));
+                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+            yPos += 26;
+
+            // Show name on hover toggle
+            this.addDrawableChild(ButtonWidget.builder(
+                    Text.translatable("options.namedloot.show_name_on_hover",
+                            NamedLootClient.CONFIG.showNameOnHover ? "ON" : "OFF"), button -> {
+                        NamedLootClient.CONFIG.showNameOnHover = !NamedLootClient.CONFIG.showNameOnHover;
+                        button.setMessage(Text.translatable("options.namedloot.show_name_on_hover",
+                                NamedLootClient.CONFIG.showNameOnHover ? "ON" : "OFF"));
+                        this.init(); // Refresh to show/hide sub-option
                     }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
             yPos += 26;
 

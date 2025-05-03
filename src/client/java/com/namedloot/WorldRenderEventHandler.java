@@ -16,6 +16,7 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Rarity;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Box;
@@ -24,6 +25,7 @@ import net.minecraft.enchantment.EnchantmentHelper;
 import java.util.*;
 
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.world.RaycastContext;
 import org.joml.Matrix4f;
 
 public class WorldRenderEventHandler {
@@ -59,7 +61,16 @@ public class WorldRenderEventHandler {
                     }
                 }
 
-                itemEntitiesToRender.add(entity);
+                // If showNameOnHover is enabled, check if the player is looking at this entity
+                if (NamedLootClient.CONFIG.showNameOnHover) {
+                    if (isPlayerLookingAt(client, entity)) {
+                        itemEntitiesToRender.add(entity);
+                    }
+                } else {
+                    // Normal behavior - add all items
+                    itemEntitiesToRender.add(entity);
+                }
+
             }
 
             // Skip if no entities to render
@@ -79,6 +90,61 @@ public class WorldRenderEventHandler {
             }
 
         });
+    }
+
+    private static boolean isPlayerLookingAt(MinecraftClient client, ItemEntity entity) {
+        // Get the entity's position and bounding box
+        Vec3d entityPos = entity.getPos();
+        Box entityBox = entity.getBoundingBox();
+
+        // Get player's look vector
+        assert client.player != null;
+        Vec3d lookVec = client.player.getRotationVec(1.0F);
+        Vec3d playerPos = client.player.getEyePos();
+
+        // Determine the reach distance for hover detection
+        double reachDistance;
+
+        if (NamedLootClient.CONFIG.displayDistance > 0) {
+            // If displayDistance is set, use it as the maximum hover distance
+            reachDistance = NamedLootClient.CONFIG.displayDistance;
+        } else {
+            // If displayDistance is 0 (unlimited), use a reasonable hover distance
+            reachDistance = 32.0;
+        }
+
+        Vec3d endPos = playerPos.add(lookVec.multiply(reachDistance));
+
+        // Check if the ray intersects with the entity's bounding box
+        var hitResult = entityBox.expand(0.5).raycast(playerPos, endPos);
+
+        if (hitResult.isEmpty()) {
+            return false; // Ray doesn't hit the entity
+        }
+
+        // Check if there are blocks in the way
+        assert client.world != null;
+        var blockHitResult = client.world.raycast(
+                new RaycastContext(
+                        playerPos,
+                        entityPos,  // Use entity position as the end point
+                        RaycastContext.ShapeType.COLLIDER,
+                        RaycastContext.FluidHandling.NONE,
+                        client.player
+                )
+        );
+
+        // If the block hit result is of type MISS, there are no blocks in the way
+        // Otherwise, check if the distance to the block is greater than the distance to the entity
+        if (blockHitResult.getType() != HitResult.Type.MISS) {
+            double blockDist = blockHitResult.getPos().distanceTo(playerPos);
+            double entityDist = entityPos.distanceTo(playerPos);
+
+            // If block is closer than entity, the view is obstructed
+            return !(blockDist < entityDist);
+        }
+
+        return true;
     }
 
     private static void renderItemNameTag(ItemEntity entity, MatrixStack matrices,
@@ -125,9 +191,12 @@ public class WorldRenderEventHandler {
 
         float textOffset = -textRenderer.getWidth(formattedText) / 2.0F;
 
+        // Check for detail visibility based on hover option
+        boolean shouldShowDetails = NamedLootClient.CONFIG.showDetails;
+
         // Get enchantment details if needed
         List<Text> details = new ArrayList<>();
-        if (NamedLootClient.CONFIG.showDetails) {
+        if (shouldShowDetails) {
             Set<RegistryEntry<Enchantment>> enchantmentEntries = EnchantmentHelper.getEnchantments(entity.getStack()).getEnchantments();
             for (RegistryEntry<Enchantment> enchantmentEntry : enchantmentEntries) {
                 int level = EnchantmentHelper.getEnchantments(entity.getStack()).getLevel(enchantmentEntry);
@@ -227,7 +296,7 @@ public class WorldRenderEventHandler {
         MutableText formattedText = Text.literal("");
         String format = NamedLootClient.CONFIG.textFormat;
 
-        // Set name color dari konfigurasi (akan dipakai bila kondisi tidak memenuhi)
+        // Set name color from configuration (will be used if conditions are not met)
         int configNameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
         int configNameGreen = (int)(NamedLootClient.CONFIG.nameGreen * 255);
         int configNameBlue = (int)(NamedLootClient.CONFIG.nameBlue * 255);
@@ -244,7 +313,7 @@ public class WorldRenderEventHandler {
             int nameIndex = format.indexOf("{name}", currentIndex);
             int countIndex = format.indexOf("{count}", currentIndex);
 
-            // Tentukan placeholder terdekat
+            // Determine the nearest placeholder
             int nextPlaceholderIndex = -1;
             String placeholderType = null;
 
@@ -256,31 +325,31 @@ public class WorldRenderEventHandler {
                 placeholderType = "count";
             }
 
-            // Jika tidak ada placeholder lagi, tambahkan sisa literal text
+            // If there are no more placeholders, add the remaining literal text
             if (nextPlaceholderIndex == -1) {
                 formattedText.append(Text.literal(format.substring(currentIndex)));
                 break;
             }
 
-            // Tambahkan literal text sebelum placeholder
+            // Add literal text before placeholder
             if (nextPlaceholderIndex > currentIndex) {
                 formattedText.append(Text.literal(format.substring(currentIndex, nextPlaceholderIndex)));
             }
 
-            // Proses placeholder
+            // Process placeholder
             if ("name".equals(placeholderType)) {
-                // Tangani placeholder {name}
+                // Handle {name} placeholder
                 if (!NamedLootClient.CONFIG.overrideItemColors) {
                     TextColor existingColor = itemStack.getName().getStyle().getColor();
                     boolean isCommon = itemStack.getRarity().equals(Rarity.COMMON);
 
-                    // Logika: Jika nama item memiliki warna bawaan (bukan null/putih) ATAU rarity BUKAN COMMON
-                    // Gunakan getFormattedName (mempertahankan warna dan style bawaan)
+                    // Logic: If the item name has a built-in color (not null/white) OR rarity is NOT COMMON,
+                    // use getFormattedName (maintaining built-in color and style)
                     if (existingColor != null && existingColor != TextColor.fromFormatting(Formatting.WHITE) || !isCommon) {
                         formattedText.append(itemStack.getFormattedName());
                     } else {
-                        // Jika tidak ada warna bawaan (atau putih) DAN rarity COMMON
-                        // Gunakan nama plain dengan style dari konfigurasi
+                        // If there is no built-in color (or white) AND rarity is COMMON,
+                        // use plain name with style from configuration
                         String plainName = itemStack.getName().getString();
                         Style nameStyle = Style.EMPTY.withColor(configNameColor);
                         if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
@@ -290,7 +359,7 @@ public class WorldRenderEventHandler {
                         formattedText.append(Text.literal(plainName).setStyle(nameStyle));
                     }
                 } else {
-                    // Jika override aktif, selalu gunakan nama plain dengan style dari konfigurasi
+                    // If override is active, always use plain name with style from configuration
                     String plainName = itemStack.getName().getString();
                     Style nameStyle = Style.EMPTY.withColor(configNameColor);
                     if (NamedLootClient.CONFIG.nameBold) nameStyle = nameStyle.withBold(true);
@@ -302,7 +371,7 @@ public class WorldRenderEventHandler {
                 currentIndex = nextPlaceholderIndex + "{name}".length();
 
             } else {
-                // Tangani placeholder {count}
+                // Handle {count} placeholder
                 Style countStyle = Style.EMPTY.withColor(countColor);
                 if (NamedLootClient.CONFIG.countBold) countStyle = countStyle.withBold(true);
                 if (NamedLootClient.CONFIG.countItalic) countStyle = countStyle.withItalic(true);

@@ -31,7 +31,8 @@
   "options.namedloot.format_codes": "Color Codes Reference",
   "options.namedloot.override_colors": "Override Item Colors: %s",
   "options.namedloot.show_details": "Show Item Details: %s",
-  "options.namedloot.see_through": "See Through Text: %s",
+  "options.namedloot.show_name_on_hover": "Show Name Only On Hover: %s",
+  "options.namedloot.see_through": "See Through: %s",
   "options.namedloot.background_color": "Background Color: %s",
   "options.namedloot.background_opacity_value": "%s%%",
 
