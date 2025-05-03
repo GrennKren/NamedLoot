@@ -26,7 +26,6 @@
 
   "options.namedloot.reset_colors": "Reset Colors",
 
-  "options.namedloot.formatting_options": "Formatting Options",
   "options.namedloot.manual_formatting": "Manual Formatting: %s",
   "options.namedloot.format_description": "Use '&' for color codes (e.g. &6{name}&c x{count})",
   "options.namedloot.format_codes": "Color Codes Reference",
@@ -34,7 +33,6 @@
   "options.namedloot.show_details": "Show Item Details: %s",
   "options.namedloot.see_through": "See Through Text: %s",
   "options.namedloot.background_color": "Background Color: %s",
-  "options.namedloot.background_opacity": "Background Opacity:",
   "options.namedloot.background_opacity_value": "%s%%",
 
   "options.namedloot.color_code.black": "Black",

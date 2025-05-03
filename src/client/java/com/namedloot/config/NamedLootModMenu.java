@@ -9,21 +9,11 @@ import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.item.ItemStack;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.nbt.NbtCompound;
 import com.namedloot.NamedLootClient;
 import com.namedloot.WorldRenderEventHandler;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 public class NamedLootModMenu implements ModMenuApi {
     @Override
@@ -46,14 +36,10 @@ public class NamedLootModMenu implements ModMenuApi {
         private boolean isScrolling = false;
         private int contentHeight = 450; // Approximate height of all content
 
-        private int yBase;// = this.height / 8;
-        private int yPos;// = yBase + scrollOffset;
-
         private int nameColorLabelYPos;
         private int countColorLabelYPos;
         private int textFormatLabelYPos;
         private int formatDescriptionYPos;
-
 
         public NamedLootConfigScreen(Screen parent) {
             super(Text.translatable("text.namedloot.config"));
@@ -62,8 +48,8 @@ public class NamedLootModMenu implements ModMenuApi {
 
         @Override
         protected void init() {
-            this.yBase = this.height / 8;
-            this.yPos = yBase + scrollOffset;
+            int yBase = this.height / 8;
+            int yPos = yBase + scrollOffset;
 
             // Handle window resizing by adjusting scroll offset
             if (previousHeight != 0 && previousHeight != this.height) {
@@ -78,11 +64,8 @@ public class NamedLootModMenu implements ModMenuApi {
             // Store the current height for future comparison
             previousHeight = this.height;
 
-            this.contentHeight = 650;
-
             // Original init code continues
             this.clearChildren();
-
 
             // ==========================================================
             // GENERAL SECTION
@@ -150,16 +133,19 @@ public class NamedLootModMenu implements ModMenuApi {
             // FORMATTING OPTIONS SECTION
             // ==========================================================
 
-            // General formatting section header
-            this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                    Text.translatable("options.namedloot.formatting_options").formatted(Formatting.YELLOW, Formatting.BOLD),
-                    this.width / 2 - 100, yPos, 0xFFFFFF));
-            yPos += 16;
-
             // Manual formatting toggle
             this.addDrawableChild(ButtonWidget.builder(
                     Text.translatable("options.namedloot.manual_formatting",
                             NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"), button -> {
+                        // Jika manual formatting sedang aktif, simpan nilai manual dan pulihkan nilai otomatis
+                        if (NamedLootClient.CONFIG.useManualFormatting) {
+                            NamedLootClient.CONFIG.manualTextFormat = NamedLootClient.CONFIG.textFormat;
+                            NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.automaticTextFormat;
+                        } else {
+                            // Jika manual formatting tidak aktif, simpan nilai otomatis dan pulihkan nilai manual
+                            NamedLootClient.CONFIG.automaticTextFormat = NamedLootClient.CONFIG.textFormat;
+                            NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.manualTextFormat;
+                        }
                         NamedLootClient.CONFIG.useManualFormatting = !NamedLootClient.CONFIG.useManualFormatting;
                         button.setMessage(Text.translatable("options.namedloot.manual_formatting",
                                 NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"));
@@ -206,18 +192,11 @@ public class NamedLootModMenu implements ModMenuApi {
                                 NamedLootClient.CONFIG.useBackgroundColor ? "ON" : "OFF"));
                         this.init();
                     }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 16;
+            yPos += 26;
 
             // Background color slider (only shown if background color is enabled)
             if (NamedLootClient.CONFIG.useBackgroundColor) {
-                // Background color label
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.background_opacity",
-                                (int)((NamedLootClient.CONFIG.backgroundColor >>> 24) & 0xFF)),
-                        this.width / 2 - 100, yPos, 0xFFFFFF));
-                yPos += 16;
 
-                // Background opacity slider
                 float opacity = ((NamedLootClient.CONFIG.backgroundColor >>> 24) & 0xFF) / 255.0F;
                 SliderWidget bgOpacitySlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
                         Text.translatable("options.namedloot.background_opacity_value", (int)(opacity * 100)),
@@ -527,7 +506,8 @@ public class NamedLootModMenu implements ModMenuApi {
 
             // Set initial focus to text field
             this.setInitialFocus(formatField);
-            yPos = yBase + scrollOffset;
+            int computedContentHeight = yPos - (yBase + scrollOffset);
+            this.contentHeight = computedContentHeight + 50;
 
         }
 

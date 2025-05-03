@@ -14,6 +14,8 @@ public class NamedLootConfig {
     public float verticalOffset = 0.5F;
     public float displayDistance = 0.0F; // 0 means unlimited
     public String textFormat = "{name} x{count}";
+    public String manualTextFormat = "{name} x{count}"; // Nilai default manual yang sesuai, misalnya bisa diubah nanti
+    public String automaticTextFormat = "{name} x{count}";
 
     // Colors for item name (white default)
     public float nameRed = 1.0F;
@@ -72,9 +74,6 @@ public class NamedLootConfig {
 
     public static void save(NamedLootConfig config) {
         try {
-            //if (!CONFIG_FILE.getParentFile().exists()) {
-            //    CONFIG_FILE.getParentFile().mkdirs();
-            //}
 
             try (FileWriter writer = new FileWriter(CONFIG_FILE)) {
                 GSON.toJson(config, writer);
