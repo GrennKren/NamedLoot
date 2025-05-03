@@ -196,8 +196,15 @@ public class NamedLootModMenu implements ModMenuApi {
 
             // Background color slider (only shown if background color is enabled)
             if (NamedLootClient.CONFIG.useBackgroundColor) {
+                // Item name background opacity slider
 
+                int labelSliderBackgroundOpacityY = yPos;
                 float opacity = ((NamedLootClient.CONFIG.backgroundColor >>> 24) & 0xFF) / 255.0F;
+                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
+                        Text.translatable("options.namedloot.item_background_opacity"),
+                        this.width / 2 - 100, labelSliderBackgroundOpacityY, 0xFFFFFF));
+                yPos += 16;
+
                 SliderWidget bgOpacitySlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
                         Text.translatable("options.namedloot.background_opacity_value", (int)(opacity * 100)),
                         opacity) {
@@ -216,8 +223,47 @@ public class NamedLootModMenu implements ModMenuApi {
                     }
                 };
                 this.addDrawableChild(bgOpacitySlider);
-                yPos += 20;
+                yPos += 26;
+
+                // Detail background type toggle
+                this.addDrawableChild(ButtonWidget.builder(
+                        Text.translatable("options.namedloot.detail_background_type",
+                                NamedLootClient.CONFIG.useDetailBackgroundBox ? "BOX" : "INLINE"), button -> {
+                            NamedLootClient.CONFIG.useDetailBackgroundBox = !NamedLootClient.CONFIG.useDetailBackgroundBox;
+                            button.setMessage(Text.translatable("options.namedloot.detail_background_type",
+                                    NamedLootClient.CONFIG.useDetailBackgroundBox ? "BOX" : "INLINE"));
+                        }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+                yPos += 26;
+
+                // Detail background opacity slider
+                int labelSliderDetailBackgroundOpacityY = yPos;
+                float detailOpacity = ((NamedLootClient.CONFIG.detailBackgroundColor >>> 24) & 0xFF) / 255.0F;
+                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
+                        Text.translatable("options.namedloot.detail_background_opacity"),
+                        this.width / 2 - 100, labelSliderDetailBackgroundOpacityY, 0xFFFFFF));
+                yPos += 16;
+
+                SliderWidget detailBgOpacitySlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
+                        Text.translatable("options.namedloot.background_opacity_value", (int)(detailOpacity * 100)),
+                        detailOpacity) {
+                    @Override
+                    protected void updateMessage() {
+                        this.setMessage(Text.translatable("options.namedloot.background_opacity_value",
+                                (int)(this.value * 100)));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        int alpha = (int)(this.value * 255) & 0xFF;
+                        NamedLootClient.CONFIG.detailBackgroundColor = (alpha << 24) |
+                                (NamedLootClient.CONFIG.detailBackgroundColor & 0x00FFFFFF);
+                        this.updateMessage();
+                    }
+                };
+                this.addDrawableChild(detailBgOpacitySlider);
+                yPos += 26;
             }
+
             // ==========================================================
             // TEXT FORMAT SECTION
             // ==========================================================
@@ -497,7 +543,7 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             // Done button
-            this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, button -> {
+            this.addDrawableChild(ButtonWidget.builder(Text.of("Save Config"), button -> {
                 // Save config and return to previous screen
                 NamedLootClient.saveConfig();
                 assert this.client != null;

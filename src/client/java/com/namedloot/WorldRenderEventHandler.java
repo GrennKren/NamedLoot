@@ -156,20 +156,23 @@ public class WorldRenderEventHandler {
 
         // Draw details background if needed
         if (NamedLootClient.CONFIG.showDetails && !details.isEmpty()) {
-            int lineHeight = 10;
-            int padding = 2;
+            if (NamedLootClient.CONFIG.useBackgroundColor && NamedLootClient.CONFIG.useDetailBackgroundBox) {
+                int lineHeight = 10;
+                int padding = 2;
 
-            int maxWidth = details.stream()
-                    .mapToInt(textRenderer::getWidth)
-                    .max()
-                    .orElse(0);
+                int maxWidth = details.stream()
+                        .mapToInt(textRenderer::getWidth)
+                        .max()
+                        .orElse(0);
 
-            float xOffset = textOffset - padding;
-            float yOffset = -(details.size() * lineHeight);
-            float width = maxWidth + padding * 2;
-            float height = (details.size() * lineHeight) + padding;
+                float xOffset = textOffset - padding;
+                float yOffset = -(details.size() * lineHeight);
+                float width   = xOffset + maxWidth + padding * 2;
+                float height  = yOffset + (details.size() * lineHeight) + padding;
 
-            drawBackgroundBox(matrices, vertexConsumers, xOffset, yOffset, xOffset + width, yOffset + height, NamedLootClient.CONFIG.backgroundColor);
+                drawBackgroundBox(matrices, vertexConsumers, xOffset, yOffset, width, height,
+                        NamedLootClient.CONFIG.detailBackgroundColor, NamedLootClient.CONFIG.useSeeThrough);
+            }
         }
 
         // Render details if enabled
@@ -189,7 +192,9 @@ public class WorldRenderEventHandler {
                         NamedLootClient.CONFIG.useSeeThrough ?
                                 TextRenderer.TextLayerType.SEE_THROUGH :
                                 TextRenderer.TextLayerType.NORMAL,
-                        0,
+                        // Use detail background color if background enabled and not using box style
+                        (NamedLootClient.CONFIG.useBackgroundColor && !NamedLootClient.CONFIG.useDetailBackgroundBox) ?
+                                NamedLootClient.CONFIG.detailBackgroundColor : 0x00000000,
                         0xF000F0
                 );
                 yOffset += 10;
@@ -200,13 +205,22 @@ public class WorldRenderEventHandler {
     }
 
 
-    private static void drawBackgroundBox(MatrixStack matrices, VertexConsumerProvider provider, float x1, float y1, float x2, float y2, int color) {
+    private static void drawBackgroundBox(MatrixStack matrices, VertexConsumerProvider provider, float x1, float y1, float x2, float y2, int color, boolean useSeeThrough) {
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        VertexConsumer buffer = provider.getBuffer(RenderLayer.getGui());
-        buffer.vertex(matrix, x1, y1, -1).color(color);
-        buffer.vertex(matrix, x1, y2, -1).color(color);
-        buffer.vertex(matrix, x2, y2, -1).color(color);
-        buffer.vertex(matrix, x2, y1, -1).color(color);
+        // Select the appropriate RenderLayer based on the useSeeThrough setting
+        RenderLayer layer = useSeeThrough ? RenderLayer.getTextBackgroundSeeThrough() : RenderLayer.getTextBackground();
+        VertexConsumer buffer = provider.getBuffer(layer);
+
+        // Draw the quad
+        float red = (float)(color >> 16 & 255) / 255.0F;
+        float green = (float)(color >> 8 & 255) / 255.0F;
+        float blue = (float)(color & 255) / 255.0F;
+        float alpha = (float)(color >> 24 & 255) / 255.0F; // Use alpha from the color
+
+        buffer.vertex(matrix, x1, y2, -1).color(red, green, blue, alpha).light(0xF000F0); // Add light like text
+        buffer.vertex(matrix, x2, y2, -1).color(red, green, blue, alpha).light(0xF000F0);
+        buffer.vertex(matrix, x2, y1, -1).color(red, green, blue, alpha).light(0xF000F0);
+        buffer.vertex(matrix, x1, y1, -1).color(red, green, blue, alpha).light(0xF000F0);
     }
 
     public static MutableText createAutomaticFormattedText(ItemStack itemStack, String countText) {

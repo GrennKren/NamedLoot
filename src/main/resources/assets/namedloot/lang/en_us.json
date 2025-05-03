@@ -35,6 +35,10 @@
   "options.namedloot.background_color": "Background Color: %s",
   "options.namedloot.background_opacity_value": "%s%%",
 
+  "options.namedloot.item_background_opacity": "Item Name Background Opacity:",
+  "options.namedloot.detail_background_type": "Enchantment Details Style: %s",
+  "options.namedloot.detail_background_opacity": "Enchantment Details Background Opacity:",
+
   "options.namedloot.color_code.black": "Black",
   "options.namedloot.color_code.dark_blue": "Dark Blue",
   "options.namedloot.color_code.dark_green": "Dark Green",

@@ -48,6 +48,8 @@ public class NamedLootConfig {
     // Background and rendering options
     public boolean useBackgroundColor = false;
     public int backgroundColor = 0x80000000; // Semi-transparent black
+    public boolean useDetailBackgroundBox = true; // New setting for using drawBackgroundBox
+    public int detailBackgroundColor = 0x80000000; // Semi-transparent black for details
     public boolean useSeeThrough = true;
     public boolean showDetails = false;
 
