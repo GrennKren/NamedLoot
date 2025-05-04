@@ -81,14 +81,15 @@ public class WorldRenderEventHandler {
             // Get render state
             MatrixStack matrices = context.matrixStack();
             float tickDelta = context.tickCounter().getTickDelta(true);
+
             TextRenderer textRenderer = client.textRenderer;
-            VertexConsumerProvider vertexConsumers = context.consumers();
+            VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
+
 
             // Render all item name tags
             for (ItemEntity entity : itemEntitiesToRender) {
-                renderItemNameTag(entity, matrices, vertexConsumers, client, textRenderer, tickDelta);
+                renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
             }
-
         });
     }
 
@@ -151,6 +152,9 @@ public class WorldRenderEventHandler {
                                           VertexConsumerProvider vertexConsumers,
                                           MinecraftClient client, TextRenderer textRenderer,
                                           float tickDelta) {
+        if(matrices == null) {
+            return;
+        }
         // Get item count
         int count = entity.getStack().getCount();
         String countText = String.valueOf(count);
