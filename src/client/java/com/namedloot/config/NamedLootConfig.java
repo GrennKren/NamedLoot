@@ -13,7 +13,7 @@ public class NamedLootConfig {
     // Default values
     public float verticalOffset = 0.5F;
     public float displayDistance = 0.0F; // 0 means unlimited
-    public String textFormat = "{name} x{count}";
+    public String textFormat = "{name} &6&lx{count}";
     public String manualTextFormat = "{name} x{count}"; // Default manual value that can be changed later
     public String automaticTextFormat = "{name} x{count}";
 
@@ -30,7 +30,7 @@ public class NamedLootConfig {
     // New configs for text styling
 
     // Text formatting
-    public boolean useManualFormatting = false;
+    public boolean useManualFormatting = true;
     public boolean overrideItemColors = false;
 
     // Text styles for name
@@ -46,15 +46,16 @@ public class NamedLootConfig {
     public boolean countStrikethrough = false;
 
     // Background and rendering options
-    public boolean useBackgroundColor = false;
-    public int backgroundColor = 0x80000000; // Semi-transparent black
-    public boolean useDetailBackgroundBox = true; // New setting for using drawBackgroundBox
-    public int detailBackgroundColor = 0x80000000; // Semi-transparent black for details
+    public boolean useBackgroundColor = true;
+    public int backgroundColor = 0x33000000; // 20% Semi-transparent black
+    public boolean useDetailBackgroundBox = false; //
+    public int detailBackgroundColor = 0x33000000; // 20% emi-transparent black for details
     public boolean useSeeThrough = true;
-    public boolean showDetails = false;
+    public boolean showDetails = true;
+    public boolean showDetailsOnlyOnHover = true; // only works if showDetails is true
 
     // Hover options
-    public boolean showNameOnHover = false; // New option for showing names only on hover
+    public boolean showNameOnHover = false; // option for showing names only on hover
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final File CONFIG_FILE = new File("config/namedloot.json");

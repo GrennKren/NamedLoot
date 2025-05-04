@@ -198,6 +198,11 @@ public class WorldRenderEventHandler {
         // Check for detail visibility based on hover option
         boolean shouldShowDetails = NamedLootClient.CONFIG.showDetails;
 
+        // If details should only be shown on hover, check if the player is looking at this entity
+        if (shouldShowDetails && NamedLootClient.CONFIG.showDetailsOnlyOnHover) {
+            shouldShowDetails = isPlayerLookingAt(client, entity);
+        }
+
         // Get enchantment details if needed
         List<Text> details = new ArrayList<>();
         if (shouldShowDetails) {

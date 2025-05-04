@@ -171,8 +171,21 @@ public class NamedLootModMenu implements ModMenuApi {
                         NamedLootClient.CONFIG.showDetails = !NamedLootClient.CONFIG.showDetails;
                         button.setMessage(Text.translatable("options.namedloot.show_details",
                                 NamedLootClient.CONFIG.showDetails ? "ON" : "OFF"));
+                        this.init(); // Reinitialize to show/hide the sub-option
                     }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
             yPos += 26;
+
+            // Show details on hover sub-option (only shown if showDetails is enabled)
+            if (NamedLootClient.CONFIG.showDetails) {
+                this.addDrawableChild(ButtonWidget.builder(
+                        Text.translatable("options.namedloot.show_details_on_hover",
+                                NamedLootClient.CONFIG.showDetailsOnlyOnHover ? "ON" : "OFF"), button -> {
+                            NamedLootClient.CONFIG.showDetailsOnlyOnHover = !NamedLootClient.CONFIG.showDetailsOnlyOnHover;
+                            button.setMessage(Text.translatable("options.namedloot.show_details_on_hover",
+                                    NamedLootClient.CONFIG.showDetailsOnlyOnHover ? "ON" : "OFF"));
+                        }).dimensions(this.width / 2 - 80, yPos, 160, 20).build());
+                yPos += 26;
+            }
 
             // Show name on hover toggle
             this.addDrawableChild(ButtonWidget.builder(
