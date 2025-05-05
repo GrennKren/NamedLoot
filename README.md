@@ -7,8 +7,8 @@ Highly configurable through an intuitive ModMenu interface - adjust colors, back
 
 ### General Settings
 - Vertical offset for positioning name tags
-- Maximum display distance (set to 0 for unlimited)
-
+- Adjustable display distance
+  
 ### Display Options
 - Toggle item color overriding
 - Show/hide item details (enchantments)
