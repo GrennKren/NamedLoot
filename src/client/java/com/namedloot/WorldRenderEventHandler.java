@@ -80,7 +80,7 @@ public class WorldRenderEventHandler {
 
             // Get render state
             MatrixStack matrices = context.matrixStack();
-            float tickDelta = context.tickCounter().getTickDelta(true);
+            float tickDelta = context.tickCounter().getDynamicDeltaTicks();
 
             TextRenderer textRenderer = client.textRenderer;
             VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
@@ -175,9 +175,9 @@ public class WorldRenderEventHandler {
         matrices.push();
 
         // Get entity's interpolated position
-        double x = entity.prevX + (entity.getX() - entity.prevX) * tickDelta;
-        double y = entity.prevY + (entity.getY() - entity.prevY) * tickDelta;
-        double z = entity.prevZ + (entity.getZ() - entity.prevZ) * tickDelta;
+        double x = entity.lastX + (entity.getX() - entity.lastX) * tickDelta;
+        double y = entity.lastY + (entity.getY() - entity.lastY) * tickDelta;
+        double z = entity.lastZ + (entity.getZ() - entity.lastZ) * tickDelta;
 
         // Set camera-relative position
         Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
@@ -355,9 +355,9 @@ public class WorldRenderEventHandler {
                     // Logic: If the item name has a built-in color (not null/white) OR rarity is NOT COMMON,
                     // use getFormattedName (maintaining built-in color and style)
                     if (existingColor != null && existingColor != TextColor.fromFormatting(Formatting.WHITE) || !isCommon) {
-                        formattedText.append(itemStack.getFormattedName());
+                        formattedText.append(itemStack.getFormattedName().copy());
                     } else {
-                        // If there is no built-in color (or white) AND rarity is COMMON,
+                        // If there is n55559lt-in color (or white) AND rarity is COMMON,
                         // use plain name with style from configuration
                         String plainName = itemStack.getName().getString();
                         Style nameStyle = Style.EMPTY.withColor(configNameColor);
