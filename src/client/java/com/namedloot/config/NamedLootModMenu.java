@@ -14,6 +14,8 @@ import net.minecraft.item.ItemStack;
 import com.namedloot.NamedLootClient;
 import com.namedloot.WorldRenderEventHandler;
 
+import java.util.function.Consumer;
+
 public class NamedLootModMenu implements ModMenuApi {
     @Override
     public ConfigScreenFactory<?> getModConfigScreenFactory() {
@@ -40,7 +42,10 @@ public class NamedLootModMenu implements ModMenuApi {
         private int textFormatLabelYPos;
         private int formatDescriptionYPos;
 
-        //private CheckboxWidget showNameOnHoverCheckbox;
+        private static final int SECTION_TITLE_COLOR = 0xFFFFAA00;
+        private static final int SECTION_SEPARATOR_COLOR = 0x66FFFFFF;
+
+        // private List<CheckboxWidget> checkboxes = new ArrayList<>();
 
         public NamedLootConfigScreen(Screen parent) {
             super(Text.translatable("text.namedloot.config"));
@@ -65,12 +70,15 @@ public class NamedLootModMenu implements ModMenuApi {
             // Store the current height for future comparison
             previousHeight = this.height;
 
-            // Original init code continues
+            // Clear existing widgets and checkbox list
             this.clearChildren();
+            //this.checkboxes.clear();
 
             // ==========================================================
             // GENERAL SECTION
             // ==========================================================
+            drawSectionHeader(yPos, "options.namedloot.section.general");
+            yPos += 20;
 
             // Vertical Offset Slider
             SliderWidget verticalOffsetSlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
@@ -131,98 +139,75 @@ public class NamedLootModMenu implements ModMenuApi {
             yPos += 30;
 
             // ==========================================================
-            // FORMATTING OPTIONS SECTION
+            // DISPLAY OPTIONS SECTION
             // ==========================================================
+            drawSectionHeader(yPos, "options.namedloot.section.display");
+            yPos += 20;
 
-            // Manual formatting toggle
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.manual_formatting",
-                            NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"), button -> {
-                        // If manual formatting is active, save the manual value and restore the automatic value
-                        if (NamedLootClient.CONFIG.useManualFormatting) {
-                            NamedLootClient.CONFIG.manualTextFormat = NamedLootClient.CONFIG.textFormat;
-                            NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.automaticTextFormat;
-                        } else {
-                            // If manual formatting is not active, save the automatic value and restore the manual value
-                            NamedLootClient.CONFIG.automaticTextFormat = NamedLootClient.CONFIG.textFormat;
-                            NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.manualTextFormat;
-                        }
-                        NamedLootClient.CONFIG.useManualFormatting = !NamedLootClient.CONFIG.useManualFormatting;
-                        button.setMessage(Text.translatable("options.namedloot.manual_formatting",
-                                NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"));
-                        this.init();
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 26;
+            // Replace button toggles with checkboxes
+            addCheckbox(
+                    "options.namedloot.override_colors",
+                    NamedLootClient.CONFIG.overrideItemColors,
+                    (checkbox) -> NamedLootClient.CONFIG.overrideItemColors = checkbox,
+                    this.width / 2 - 100, yPos, 200
+            );
+            yPos += 24;
 
-            // Override item colors toggle
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.override_colors",
-                            NamedLootClient.CONFIG.overrideItemColors ? "ON" : "OFF"), button -> {
-                        NamedLootClient.CONFIG.overrideItemColors = !NamedLootClient.CONFIG.overrideItemColors;
-                        button.setMessage(Text.translatable("options.namedloot.override_colors",
-                                NamedLootClient.CONFIG.overrideItemColors ? "ON" : "OFF"));
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 26;
-
-            // Show details toggle
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.show_details",
-                            NamedLootClient.CONFIG.showDetails ? "ON" : "OFF"), button -> {
-                        NamedLootClient.CONFIG.showDetails = !NamedLootClient.CONFIG.showDetails;
-                        button.setMessage(Text.translatable("options.namedloot.show_details",
-                                NamedLootClient.CONFIG.showDetails ? "ON" : "OFF"));
+            addCheckbox(
+                    "options.namedloot.show_details",
+                    NamedLootClient.CONFIG.showDetails,
+                    (checkbox) -> {
+                        NamedLootClient.CONFIG.showDetails = checkbox;
                         this.init(); // Reinitialize to show/hide the sub-option
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 26;
+                    },
+                    this.width / 2 - 100, yPos, 200
+            );
+            yPos += 24;
 
             // Show details on hover sub-option (only shown if showDetails is enabled)
             if (NamedLootClient.CONFIG.showDetails) {
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.show_details_on_hover",
-                                NamedLootClient.CONFIG.showDetailsOnlyOnHover ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.showDetailsOnlyOnHover = !NamedLootClient.CONFIG.showDetailsOnlyOnHover;
-                            button.setMessage(Text.translatable("options.namedloot.show_details_on_hover",
-                                    NamedLootClient.CONFIG.showDetailsOnlyOnHover ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 - 80, yPos, 160, 20).build());
-                yPos += 26;
+                addCheckbox(
+                        "options.namedloot.show_details_on_hover",
+                        NamedLootClient.CONFIG.showDetailsOnlyOnHover,
+                        (checkbox) -> NamedLootClient.CONFIG.showDetailsOnlyOnHover = checkbox,
+                        this.width / 2 - 80, yPos, 160
+                );
+                yPos += 24;
             }
 
-            // Show name on hover toggle
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.show_name_on_hover",
-                            NamedLootClient.CONFIG.showNameOnHover ? "ON" : "OFF"), button -> {
-                        NamedLootClient.CONFIG.showNameOnHover = !NamedLootClient.CONFIG.showNameOnHover;
-                        button.setMessage(Text.translatable("options.namedloot.show_name_on_hover",
-                                NamedLootClient.CONFIG.showNameOnHover ? "ON" : "OFF"));
+            addCheckbox(
+                    "options.namedloot.show_name_on_hover",
+                    NamedLootClient.CONFIG.showNameOnHover,
+                    (checkbox) -> {
+                        NamedLootClient.CONFIG.showNameOnHover = checkbox;
                         this.init(); // Refresh to show/hide sub-option
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 26;
+                    },
+                    this.width / 2 - 100, yPos, 200
+            );
+            yPos += 24;
 
-            // Use see-through rendering toggle
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.see_through",
-                            NamedLootClient.CONFIG.useSeeThrough ? "ON" : "OFF"), button -> {
-                        NamedLootClient.CONFIG.useSeeThrough = !NamedLootClient.CONFIG.useSeeThrough;
-                        button.setMessage(Text.translatable("options.namedloot.see_through",
-                                NamedLootClient.CONFIG.useSeeThrough ? "ON" : "OFF"));
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 26;
+            addCheckbox(
+                    "options.namedloot.see_through",
+                    NamedLootClient.CONFIG.useSeeThrough,
+                    (checkbox) -> NamedLootClient.CONFIG.useSeeThrough = checkbox,
+                    this.width / 2 - 100, yPos, 200
+            );
+            yPos += 24;
 
-            // Use background color toggle
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.background_color",
-                            NamedLootClient.CONFIG.useBackgroundColor ? "ON" : "OFF"), button -> {
-                        NamedLootClient.CONFIG.useBackgroundColor = !NamedLootClient.CONFIG.useBackgroundColor;
-                        button.setMessage(Text.translatable("options.namedloot.background_color",
-                                NamedLootClient.CONFIG.useBackgroundColor ? "ON" : "OFF"));
+            addCheckbox(
+                    "options.namedloot.background_color",
+                    NamedLootClient.CONFIG.useBackgroundColor,
+                    (checkbox) -> {
+                        NamedLootClient.CONFIG.useBackgroundColor = checkbox;
                         this.init();
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
-            yPos += 26;
+                    },
+                    this.width / 2 - 100, yPos, 200
+            );
+            yPos += 24;
 
             // Background color slider (only shown if background color is enabled)
             if (NamedLootClient.CONFIG.useBackgroundColor) {
                 // Item name background opacity slider
-
                 int labelSliderBackgroundOpacityY = yPos;
                 float opacity = ((NamedLootClient.CONFIG.backgroundColor >>> 24) & 0xFF) / 255.0F;
                 this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
@@ -250,14 +235,35 @@ public class NamedLootModMenu implements ModMenuApi {
                 this.addDrawableChild(bgOpacitySlider);
                 yPos += 26;
 
-                // Detail background type toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.detail_background_type",
-                                NamedLootClient.CONFIG.useDetailBackgroundBox ? "BOX" : "INLINE"), button -> {
-                            NamedLootClient.CONFIG.useDetailBackgroundBox = !NamedLootClient.CONFIG.useDetailBackgroundBox;
-                            button.setMessage(Text.translatable("options.namedloot.detail_background_type",
-                                    NamedLootClient.CONFIG.useDetailBackgroundBox ? "BOX" : "INLINE"));
-                        }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+                // Detail background type options as radio-style buttons
+                int detailBackgroundTypeYPos = yPos;
+                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
+                        Text.translatable("options.namedloot.detail_background_type"),
+                        this.width / 2 - 100, detailBackgroundTypeYPos, 0xFFFFFF));
+                yPos += 16;
+
+                // Two buttons side by side that act like radio buttons
+                ButtonWidget boxButton = ButtonWidget.builder(
+                        Text.literal("Box"), button -> {
+                            NamedLootClient.CONFIG.useDetailBackgroundBox = true;
+                            this.init();
+                        }).dimensions(this.width / 2 - 100, yPos, 95, 20).build();
+
+                ButtonWidget inlineButton = ButtonWidget.builder(
+                        Text.literal("Inline"), button -> {
+                            NamedLootClient.CONFIG.useDetailBackgroundBox = false;
+                            this.init();
+                        }).dimensions(this.width / 2 + 5, yPos, 95, 20).build();
+
+                // Visually highlight the selected option
+                if (NamedLootClient.CONFIG.useDetailBackgroundBox) {
+                    boxButton.active = false; // Disable the selected button
+                } else {
+                    inlineButton.active = false;
+                }
+
+                this.addDrawableChild(boxButton);
+                this.addDrawableChild(inlineButton);
                 yPos += 26;
 
                 // Detail background opacity slider
@@ -292,9 +298,31 @@ public class NamedLootModMenu implements ModMenuApi {
             // ==========================================================
             // TEXT FORMAT SECTION
             // ==========================================================
-            yPos += 15;
+            yPos += 10;
+            drawSectionHeader(yPos, "options.namedloot.section.formatting");
+            yPos += 20;
 
-            // Text Format Label
+            // Manual formatting toggle with a more descriptive label
+            this.addDrawableChild(ButtonWidget.builder(
+                    Text.translatable("options.namedloot.manual_formatting",
+                            NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"), button -> {
+                        // If manual formatting is active, save the manual value and restore the automatic value
+                        if (NamedLootClient.CONFIG.useManualFormatting) {
+                            NamedLootClient.CONFIG.manualTextFormat = NamedLootClient.CONFIG.textFormat;
+                            NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.automaticTextFormat;
+                        } else {
+                            // If manual formatting is not active, save the automatic value and restore the manual value
+                            NamedLootClient.CONFIG.automaticTextFormat = NamedLootClient.CONFIG.textFormat;
+                            NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.manualTextFormat;
+                        }
+                        NamedLootClient.CONFIG.useManualFormatting = !NamedLootClient.CONFIG.useManualFormatting;
+                        button.setMessage(Text.translatable("options.namedloot.manual_formatting",
+                                NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"));
+                        this.init();
+                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+            yPos += 26;
+
+            // Fix the text format label and field positioning
             this.textFormatLabelYPos = yPos;
             this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
                     Text.translatable("options.namedloot.text_format"),
@@ -307,10 +335,9 @@ public class NamedLootModMenu implements ModMenuApi {
                 this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
                         Text.translatable("options.namedloot.format_description").formatted(Formatting.GRAY),
                         this.width / 2 - 100, formatDescriptionYPos, 0xFFFFFF));
-
             }
 
-            yPos += 40;
+            yPos += 36;
 
             // Text Format Field
             formatField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, yPos,
@@ -427,6 +454,7 @@ public class NamedLootModMenu implements ModMenuApi {
                 // ==========================================================
                 // NAME COLOR SECTION (only if not using manual formatting)
                 // ==========================================================
+                yPos += 15;
 
                 this.nameColorLabelYPos = yPos;
                 this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
@@ -434,43 +462,35 @@ public class NamedLootModMenu implements ModMenuApi {
                         this.width / 2 - 100, nameColorLabelYPos, 0xFFFFFF));
                 yPos += 16;
 
-                // Name style options
-                // Bold toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.name_bold",
-                                NamedLootClient.CONFIG.nameBold ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.nameBold = !NamedLootClient.CONFIG.nameBold;
-                            button.setMessage(Text.translatable("options.namedloot.name_bold",
-                                    NamedLootClient.CONFIG.nameBold ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 - 100, yPos, 95, 20).build());
+                // Name style options as checkboxes
+                addCheckbox(
+                        "options.namedloot.name_bold",
+                        NamedLootClient.CONFIG.nameBold,
+                        (checkbox) -> NamedLootClient.CONFIG.nameBold = checkbox,
+                        this.width / 2 - 100, yPos, 95
+                );
 
-                // Italic toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.name_italic",
-                                NamedLootClient.CONFIG.nameItalic ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.nameItalic = !NamedLootClient.CONFIG.nameItalic;
-                            button.setMessage(Text.translatable("options.namedloot.name_italic",
-                                    NamedLootClient.CONFIG.nameItalic ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 + 5, yPos, 95, 20).build());
-                yPos += 26;
+                addCheckbox(
+                        "options.namedloot.name_italic",
+                        NamedLootClient.CONFIG.nameItalic,
+                        (checkbox) -> NamedLootClient.CONFIG.nameItalic = checkbox,
+                        this.width / 2 + 5, yPos, 95
+                );
+                yPos += 24;
 
-                // Underline toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.name_underline",
-                                NamedLootClient.CONFIG.nameUnderline ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.nameUnderline = !NamedLootClient.CONFIG.nameUnderline;
-                            button.setMessage(Text.translatable("options.namedloot.name_underline",
-                                    NamedLootClient.CONFIG.nameUnderline ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 - 100, yPos, 95, 20).build());
+                addCheckbox(
+                        "options.namedloot.name_underline",
+                        NamedLootClient.CONFIG.nameUnderline,
+                        (checkbox) -> NamedLootClient.CONFIG.nameUnderline = checkbox,
+                        this.width / 2 - 100, yPos, 95
+                );
 
-                // Strikethrough toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.name_strikethrough",
-                                NamedLootClient.CONFIG.nameStrikethrough ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.nameStrikethrough = !NamedLootClient.CONFIG.nameStrikethrough;
-                            button.setMessage(Text.translatable("options.namedloot.name_strikethrough",
-                                    NamedLootClient.CONFIG.nameStrikethrough ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 + 5, yPos, 95, 20).build());
+                addCheckbox(
+                        "options.namedloot.name_strikethrough",
+                        NamedLootClient.CONFIG.nameStrikethrough,
+                        (checkbox) -> NamedLootClient.CONFIG.nameStrikethrough = checkbox,
+                        this.width / 2 + 5, yPos, 95
+                );
                 yPos += 26;
 
                 // Name Color Sliders
@@ -505,43 +525,35 @@ public class NamedLootModMenu implements ModMenuApi {
                         this.width / 2 - 100, countColorLabelYPos, 0xFFFFFF));
                 yPos += 16;
 
-                // Count style options
-                // Bold toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.count_bold",
-                                NamedLootClient.CONFIG.countBold ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.countBold = !NamedLootClient.CONFIG.countBold;
-                            button.setMessage(Text.translatable("options.namedloot.count_bold",
-                                    NamedLootClient.CONFIG.countBold ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 - 100, yPos, 95, 20).build());
+                // Count style options as checkboxes
+                addCheckbox(
+                        "options.namedloot.count_bold",
+                        NamedLootClient.CONFIG.countBold,
+                        (checkbox) -> NamedLootClient.CONFIG.countBold = checkbox,
+                        this.width / 2 - 100, yPos, 95
+                );
 
-                // Italic toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.count_italic",
-                                NamedLootClient.CONFIG.countItalic ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.countItalic = !NamedLootClient.CONFIG.countItalic;
-                            button.setMessage(Text.translatable("options.namedloot.count_italic",
-                                    NamedLootClient.CONFIG.countItalic ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 + 5, yPos, 95, 20).build());
-                yPos += 26;
+                addCheckbox(
+                        "options.namedloot.count_italic",
+                        NamedLootClient.CONFIG.countItalic,
+                        (checkbox) -> NamedLootClient.CONFIG.countItalic = checkbox,
+                        this.width / 2 + 5, yPos, 95
+                );
+                yPos += 24;
 
-                // Underline toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.count_underline",
-                                NamedLootClient.CONFIG.countUnderline ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.countUnderline = !NamedLootClient.CONFIG.countUnderline;
-                            button.setMessage(Text.translatable("options.namedloot.count_underline",
-                                    NamedLootClient.CONFIG.countUnderline ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 - 100, yPos, 95, 20).build());
+                addCheckbox(
+                        "options.namedloot.count_underline",
+                        NamedLootClient.CONFIG.countUnderline,
+                        (checkbox) -> NamedLootClient.CONFIG.countUnderline = checkbox,
+                        this.width / 2 - 100, yPos, 95
+                );
 
-                // Strikethrough toggle
-                this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.count_strikethrough",
-                                NamedLootClient.CONFIG.countStrikethrough ? "ON" : "OFF"), button -> {
-                            NamedLootClient.CONFIG.countStrikethrough = !NamedLootClient.CONFIG.countStrikethrough;
-                            button.setMessage(Text.translatable("options.namedloot.count_strikethrough",
-                                    NamedLootClient.CONFIG.countStrikethrough ? "ON" : "OFF"));
-                        }).dimensions(this.width / 2 + 5, yPos, 95, 20).build());
+                addCheckbox(
+                        "options.namedloot.count_strikethrough",
+                        NamedLootClient.CONFIG.countStrikethrough,
+                        (checkbox) -> NamedLootClient.CONFIG.countStrikethrough = checkbox,
+                        this.width / 2 + 5, yPos, 95
+                );
                 yPos += 26;
 
                 // Count Color Sliders
@@ -567,19 +579,72 @@ public class NamedLootModMenu implements ModMenuApi {
                 yPos += 30;
             }
 
-            // Done button
-            this.addDrawableChild(ButtonWidget.builder(Text.of("Save Config"), button -> {
-                // Save config and return to previous screen
-                NamedLootClient.saveConfig();
-                assert this.client != null;
-                this.client.setScreen(this.parent);
-            }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+            // Save and close button with clearer text
+            this.addDrawableChild(ButtonWidget.builder(
+                    Text.translatable("options.namedloot.save_and_close"), button -> {
+                        // Save config and return to previous screen
+                        NamedLootClient.saveConfig();
+                        assert this.client != null;
+                        this.client.setScreen(this.parent);
+                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+            yPos += 20;
 
             // Set initial focus to text field
             this.setInitialFocus(formatField);
+
+            // Calculate final content height
             int computedContentHeight = yPos - (yBase + scrollOffset);
             this.contentHeight = computedContentHeight + 50;
 
+        }
+
+        // Helper method to draw a section header with a separator line
+        private void drawSectionHeader(int yPos, String translationKey) {
+            final int y = yPos;
+            this.addDrawable((context, mouseX, mouseY, delta) -> {
+                // Draw section title
+                Text sectionTitle = Text.translatable(translationKey).formatted(Formatting.BOLD);
+                context.drawTextWithShadow(this.textRenderer, sectionTitle,
+                        this.width / 2 - 100, y, SECTION_TITLE_COLOR);
+
+                // Draw separator line
+                context.fill(this.width / 2 - 100, y + 12,
+                        this.width / 2 + 100, y + 13, SECTION_SEPARATOR_COLOR);
+            });
+        }
+
+        // Helper method for adding checkboxes with consistent styling
+        private void addCheckbox(String translationKey, boolean initialValue, Consumer<Boolean> callback,
+                                 int x, int y, int width) {
+            // Use larger, more visible checkbox symbols
+            Text checkboxLabel = Text.empty()
+                    .append(Text.literal(initialValue ? "☑ " : "☐ ")
+                            .formatted(Formatting.GREEN)) // Color the checkbox for better visibility
+                    .append(Text.translatable(translationKey));
+
+            ButtonWidget checkboxButton = ButtonWidget.builder(
+                    checkboxLabel,
+                    button -> {
+                        // Toggle the state by parsing the current button text
+                        boolean currentState = button.getMessage().getString().startsWith("☑");
+                        boolean newState = !currentState;
+
+                        // Update button text with larger, more visible symbols
+                        Text newLabel = Text.empty()
+                                .append(Text.literal(newState ? "☑ " : "☐ ")
+                                        .formatted(newState ? Formatting.GREEN : Formatting.GRAY)) // Color based on state
+                                .append(Text.translatable(translationKey));
+
+                        button.setMessage(newLabel);
+
+                        // Call the callback with the new state
+                        if (callback != null) {
+                            callback.accept(newState);
+                        }
+                    }
+            ).dimensions(x, y, width, 20).build();
+
+            this.addDrawableChild(checkboxButton);
         }
 
         private void addNameColorSlider(int y, String type, float initialValue) {
@@ -649,14 +714,15 @@ public class NamedLootModMenu implements ModMenuApi {
             validateScrollOffset();
         }
 
+
         @Override
         public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-            // Handle scrolling - adjust scrollOffset based on scroll direction
-            // Adjust 20 for scroll speed
+
+            // Do immediate scroll too for responsive feel
             scrollOffset = scrollOffset + (int)(verticalAmount * 20);
-            // Validate the new scroll position
+            // Validate the scroll position
             validateScrollOffset();
-            // Reinitialize all elements with the new scroll position
+            // Reinitialize with the new scroll position
             this.init();
             return true;
         }
@@ -696,11 +762,21 @@ public class NamedLootModMenu implements ModMenuApi {
 
         @Override
         public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            // Draw the background
-            this.renderBackground(context, mouseX, mouseY, delta);
+            //this.renderBackground(context, mouseX, mouseY, delta);
 
-            // Draw title at a fixed position (not affected by scroll)
-            context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 10, 16777215);
+            // Draw title at a fixed position with prettier styling
+            Text titleText = Text.literal("✦ ").formatted(Formatting.GOLD)
+                    .append(this.title)
+                    .append(Text.literal(" ✦").formatted(Formatting.GOLD));
+
+            // Draw prettier title with outline effect
+            int titleX = this.width / 2;
+            int titleY = 15;
+
+            // Draw subtle divider under the title
+            context.fill(this.width / 4, titleY + 12, this.width * 3/4, titleY + 13, 0x55FFFFFF);
+
+            context.drawCenteredTextWithShadow(this.textRenderer, titleText, titleX, titleY, 0xFFFFFF);
 
             // Render all widgets (they already have the scroll offset applied)
             super.render(context, mouseX, mouseY, delta);
@@ -715,7 +791,7 @@ public class NamedLootModMenu implements ModMenuApi {
             }
         }
 
-        // Method to draw a scrollbar
+        // Improved scrollbar with smoother appearance
         private void drawScrollbar(DrawContext context) {
             // Calculate scrollbar position and size
             int visibleHeight = this.height - 50;
@@ -729,19 +805,31 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             int scrollbarY = 25 + (int)((visibleHeight - scrollbarHeight) * scrollRatio);
+            int scrollbarX = this.width - 10;
 
-            // Draw scrollbar track (semi-transparent background)
-            context.fill(this.width - 10, 25, this.width - 6, this.height - 25, 0x40000000);
+            // Draw scrollbar track (semi-transparent gradient background)
+            context.fillGradient(
+                    scrollbarX, 25,
+                    scrollbarX + 4, this.height - 25,
+                    0x40000000, 0x40202020
+            );
 
-            // Draw scrollbar thumb (handle)
-            context.fill(this.width - 10, scrollbarY, this.width - 6, scrollbarY + scrollbarHeight, 0x80FFFFFF);
+            // Draw scrollbar thumb (handle) with gradient for better appearance
+            context.fillGradient(
+                    scrollbarX, scrollbarY,
+                    scrollbarX + 4, scrollbarY + scrollbarHeight,
+                    0x80BBBBBB, 0x80999999
+            );
+
+            // Add subtle border to the scrollbar thumb
+            context.drawBorder(scrollbarX, scrollbarY, 4, scrollbarHeight, 0x40FFFFFF);
         }
 
         // Separate method to render color previews
         private void renderColorPreviews(DrawContext context) {
             // Only show color previews if not using manual formatting
             if (!NamedLootClient.CONFIG.useManualFormatting) {
-                // Render name color preview
+                // Render name color preview with gradient for a more appealing look
                 int namePreviewY = nameColorLabelYPos + 88;
                 // Name color
                 int nameRed = (int)(NamedLootClient.CONFIG.nameRed * 255);
@@ -750,7 +838,7 @@ public class NamedLootModMenu implements ModMenuApi {
                 int nameColor = (nameRed << 16) | (nameGreen << 8) | nameBlue | 0xFF000000;
 
                 if (namePreviewY + PREVIEW_SIZE > 25 && namePreviewY < this.height - 25) {
-                    drawColorPreview(context, this.width / 2 + PREVIEW_X_OFFSET, namePreviewY, nameColor);
+                    drawEnhancedColorPreview(context, this.width / 2 + PREVIEW_X_OFFSET, namePreviewY, nameColor);
                 }
 
                 // Render count color preview
@@ -762,7 +850,7 @@ public class NamedLootModMenu implements ModMenuApi {
                 int countColor = (countRed << 16) | (countGreen << 8) | countBlue | 0xFF000000;
 
                 if (countPreviewY + PREVIEW_SIZE > 25 && countPreviewY < this.height - 25) {
-                    drawColorPreview(context, this.width / 2 + PREVIEW_X_OFFSET, countPreviewY, countColor);
+                    drawEnhancedColorPreview(context, this.width / 2 + PREVIEW_X_OFFSET, countPreviewY, countColor);
                 }
             }
 
@@ -774,9 +862,21 @@ public class NamedLootModMenu implements ModMenuApi {
                 // Create the preview text
                 MutableText previewText = createPreviewText();
 
-                // Draw the preview text in a dedicated box that won't overlap with other elements
-                context.fill(this.width / 2 - 100, formatPreviewY - 5,
-                        this.width / 2 + 100, formatPreviewY + 15, 0x40000000);
+                // Draw the preview text in a dedicated box with a subtle gradient background
+                int boxWidth = 200;
+                int boxHeight = 20;
+                int boxX = this.width / 2 - boxWidth / 2;
+                int boxY = formatPreviewY - 5;
+
+                // Draw a pretty gradient background for the preview
+                context.fillGradient(
+                        boxX, boxY,
+                        boxX + boxWidth, boxY + boxHeight,
+                        0x40202040, 0x40404080
+                );
+
+                // Add subtle border
+                context.drawBorder(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
 
                 context.drawCenteredTextWithShadow(
                         this.textRenderer,
@@ -787,6 +887,27 @@ public class NamedLootModMenu implements ModMenuApi {
                 );
             }
         }
+
+        // Enhanced color preview with label and better visuals
+        private void drawEnhancedColorPreview(DrawContext context, int x, int y, int color) {
+            int previewWidth = PREVIEW_SIZE;
+            int previewHeight = PREVIEW_SIZE;
+
+            // Draw outer border (dark with gradient)
+            context.fillGradient(
+                    x - 2, y - 2,
+                    x + previewWidth + 2, y + previewHeight + 2,
+                    0xFF222222, 0xFF444444
+            );
+
+            // Draw inner border (light)
+            context.fill(x - 1, y - 1, x + previewWidth + 1, y + previewHeight + 1, 0xFFAAAAAA);
+
+            // Draw color preview
+            context.fill(x, y, x + previewWidth, y + previewHeight, color);
+
+        }
+
 
         // Create a separate method for generating the preview text
         private MutableText createPreviewText() {
@@ -807,16 +928,6 @@ public class NamedLootModMenu implements ModMenuApi {
                         previewItem,
                         String.valueOf(previewItem.getCount()));
             }
-        }
-
-        // Helper method to draw a color preview with borders and optional transparency grid
-        private void drawColorPreview(DrawContext context, int x, int y, int color) {
-            // Draw outer border (black)
-            context.fill(x - 2, y - 2, x + PREVIEW_SIZE + 2, y + PREVIEW_SIZE + 2, 0xFF000000);
-            // Draw inner border (white)
-            context.fill(x - 1, y - 1, x + PREVIEW_SIZE + 1, y + PREVIEW_SIZE + 1, 0xFFFFFFFF);
-            // Draw color preview with exact pixel values
-            context.fill(x, y, x + PREVIEW_SIZE, y + PREVIEW_SIZE, color);
         }
     }
 }
