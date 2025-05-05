@@ -355,9 +355,9 @@ public class WorldRenderEventHandler {
                     // Logic: If the item name has a built-in color (not null/white) OR rarity is NOT COMMON,
                     // use getFormattedName (maintaining built-in color and style)
                     if (existingColor != null && existingColor != TextColor.fromFormatting(Formatting.WHITE) || !isCommon) {
-                        formattedText.append(itemStack.getFormattedName().copy());
+                        formattedText.append(itemStack.getFormattedName());
                     } else {
-                        // If there is n55559lt-in color (or white) AND rarity is COMMON,
+                        // If there is no built-in color (or white) AND rarity is COMMON,
                         // use plain name with style from configuration
                         String plainName = itemStack.getName().getString();
                         Style nameStyle = Style.EMPTY.withColor(configNameColor);
