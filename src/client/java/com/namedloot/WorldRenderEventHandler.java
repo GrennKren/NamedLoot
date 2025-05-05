@@ -355,7 +355,7 @@ public class WorldRenderEventHandler {
                     // Logic: If the item name has a built-in color (not null/white) OR rarity is NOT COMMON,
                     // use getFormattedName (maintaining built-in color and style)
                     if (existingColor != null && existingColor != TextColor.fromFormatting(Formatting.WHITE) || !isCommon) {
-                        formattedText.append(itemStack.getFormattedName());
+                        formattedText.append(itemStack.getName().copy());
                     } else {
                         // If there is no built-in color (or white) AND rarity is COMMON,
                         // use plain name with style from configuration
@@ -427,7 +427,7 @@ public class WorldRenderEventHandler {
                         if (!NamedLootClient.CONFIG.overrideItemColors &&
                                 (itemStack.getName().getStyle().getColor() != null ||
                                         !itemStack.getRarity().equals(Rarity.COMMON))) {
-                            nameText = itemStack.getFormattedName().copy();
+                            nameText = itemStack.getName().copy();
                         } else {
                             nameText = Text.literal(itemStack.getName().getString()).setStyle(currentStyle);
                         }
