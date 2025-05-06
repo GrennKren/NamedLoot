@@ -170,18 +170,19 @@ public class WorldRenderEventHandler {
             formattedText = createAutomaticFormattedText(entity.getStack(), countText);
         }
 
-        // Rest of the method remains unchanged
         // Setup for rendering
         matrices.push();
 
-        // Get entity's interpolated position
-        double x = entity.lastX + (entity.getX() - entity.lastX) * tickDelta;
-        double y = entity.lastY + (entity.getY() - entity.lastY) * tickDelta;
-        double z = entity.lastZ + (entity.getZ() - entity.lastZ) * tickDelta;
+        // Use getLerpedPos for smoother interpolation
+        Vec3d interpolatedPos = entity.getLerpedPos(tickDelta);
 
         // Set camera-relative position
         Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
-        matrices.translate(x - cameraPos.x, y - cameraPos.y + entity.getHeight() + NamedLootClient.CONFIG.verticalOffset, z - cameraPos.z);
+        matrices.translate(
+                interpolatedPos.x - cameraPos.x,
+                interpolatedPos.y - cameraPos.y + entity.getHeight() + NamedLootClient.CONFIG.verticalOffset,
+                interpolatedPos.z - cameraPos.z
+        );
 
         // Face camera
         float cameraYaw = client.gameRenderer.getCamera().getYaw();
