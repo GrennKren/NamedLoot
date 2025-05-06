@@ -80,7 +80,7 @@ public class WorldRenderEventHandler {
 
             // Get render state
             MatrixStack matrices = context.matrixStack();
-            float tickDelta = context.tickCounter().getTickDelta(true);
+            float tickDelta = context.tickCounter().getTickDelta(false);
 
             TextRenderer textRenderer = client.textRenderer;
             VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
@@ -174,14 +174,16 @@ public class WorldRenderEventHandler {
         // Setup for rendering
         matrices.push();
 
-        // Get entity's interpolated position
-        double x = entity.prevX + (entity.getX() - entity.prevX) * tickDelta;
-        double y = entity.prevY + (entity.getY() - entity.prevY) * tickDelta;
-        double z = entity.prevZ + (entity.getZ() - entity.prevZ) * tickDelta;
+        // Use getLerpedPos for smoother interpolation
+        Vec3d interpolatedPos = entity.getLerpedPos(tickDelta);
 
         // Set camera-relative position
         Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
-        matrices.translate(x - cameraPos.x, y - cameraPos.y + entity.getHeight() + NamedLootClient.CONFIG.verticalOffset, z - cameraPos.z);
+        matrices.translate(
+                interpolatedPos.x - cameraPos.x,
+                interpolatedPos.y - cameraPos.y + entity.getHeight() + NamedLootClient.CONFIG.verticalOffset,
+                interpolatedPos.z - cameraPos.z
+        );
 
         // Face camera
         float cameraYaw = client.gameRenderer.getCamera().getYaw();
