@@ -80,7 +80,7 @@ public class WorldRenderEventHandler {
 
             // Get render state
             MatrixStack matrices = context.matrixStack();
-            float tickDelta = context.tickCounter().getDynamicDeltaTicks();
+            float tickDelta = context.tickCounter().getTickProgress(false);
 
             TextRenderer textRenderer = client.textRenderer;
             VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
@@ -170,6 +170,7 @@ public class WorldRenderEventHandler {
             formattedText = createAutomaticFormattedText(entity.getStack(), countText);
         }
 
+        // Rest of the method remains unchanged
         // Setup for rendering
         matrices.push();
 
