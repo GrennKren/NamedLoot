@@ -33,7 +33,7 @@ public class WorldRenderEventHandler {
 
     public static void registerEvents() {
         // Register the event that fires after entities are rendered
-        WorldRenderEvents.AFTER_TRANSLUCENT.register((context) -> {
+        WorldRenderEvents.LAST.register((context) -> {
             MinecraftClient client = MinecraftClient.getInstance();
 
             // Skip if game is paused or no world is loaded
@@ -86,9 +86,16 @@ public class WorldRenderEventHandler {
             TextRenderer textRenderer = client.textRenderer;
             VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
 
+            Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
+
+            // Fix z position
+            itemEntitiesToRender.sort(Comparator.comparingDouble(
+                    entity -> -entity.getPos().distanceTo(cameraPos)
+            ));
 
             // Render all item name tags
             for (ItemEntity entity : itemEntitiesToRender) {
+
                 renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
             }
         });

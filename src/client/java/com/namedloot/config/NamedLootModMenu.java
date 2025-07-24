@@ -1040,7 +1040,6 @@ public class NamedLootModMenu implements ModMenuApi {
         }
 
         // Separate method to render color previews
-        // Separate method to render color previews (hanya untuk Default tab)
         private void renderColorPreviews(DrawContext context) {
             // Only show color previews if not using manual formatting AND in Default tab
             if (currentTab == 0 && !NamedLootClient.CONFIG.useManualFormatting) {
@@ -1069,7 +1068,6 @@ public class NamedLootModMenu implements ModMenuApi {
                 }
             }
 
-            // Format preview hanya untuk Default tab
             if (currentTab == 0) {
                 // Fix the format preview text position
                 int formatPreviewY = this.formatField != null ? this.formatField.getY() - 20 : 0;
@@ -1108,7 +1106,6 @@ public class NamedLootModMenu implements ModMenuApi {
 
         private void renderColorCodeReference(DrawContext context) {
             if (currentTab == 0 && NamedLootClient.CONFIG.useManualFormatting) {
-                // Render inline di Default tab (posisi yang sudah ada)
                 renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20,
                         this.formatField.getY() + 26, false);
             } else if (currentTab == 1) {
@@ -1134,11 +1131,9 @@ public class NamedLootModMenu implements ModMenuApi {
             }
         }
 
-        // Helper method untuk render color code content dengan satu method saja
         private void renderColorCodeContentAt(DrawContext context, int leftX, int rightX, int startY, boolean withTitle) {
             int colorY = startY;
 
-            // Title hanya jika diperlukan
             if (withTitle) {
                 context.drawTextWithShadow(this.textRenderer,
                         Text.translatable("options.namedloot.format_codes").formatted(Formatting.UNDERLINE),
