@@ -37,6 +37,7 @@ public class WorldRenderEventHandler {
             MinecraftClient client = MinecraftClient.getInstance();
 
             // Skip if game is paused or no world is loaded
+            // REMOVE the check for !NamedLootClient.CONFIG.enabled here
             if (client.isPaused() || client.world == null) {
                 return;
             }
@@ -71,7 +72,6 @@ public class WorldRenderEventHandler {
                     // Normal behavior - add all items
                     itemEntitiesToRender.add(entity);
                 }
-
             }
 
             // Skip if no entities to render
@@ -95,7 +95,6 @@ public class WorldRenderEventHandler {
 
             // Render all item name tags
             for (ItemEntity entity : itemEntitiesToRender) {
-
                 renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
             }
         });
@@ -169,12 +168,22 @@ public class WorldRenderEventHandler {
         int count = stack.getCount();
         List<NamedLootConfig.AdvancedRule> rules = NamedLootClient.CONFIG.advancedRules;
 
+        boolean advancedRuleApplied = false; // Flag to indicate if an advanced rule was applied
+
+        // 1. First, try to match and apply Advanced Rules
         int i = 0;
         while (i < rules.size()) {
             NamedLootConfig.AdvancedRule leader = rules.get(i);
-            if (leader.textFormat == null || leader.textFormat.isEmpty()) {
-                i++;
-                continue;
+            // We still need to check ruleEnabled for the leader to apply its format
+            // If the leader rule itself is disabled, we skip this whole group for formatting purposes.
+            // However, we still need to process subsequent chained conditions to find the start of the next group.
+            if (!leader.ruleEnabled) {
+                int nextGroupStartIndex = i + 1;
+                while (nextGroupStartIndex < rules.size() && (rules.get(nextGroupStartIndex).textFormat == null || rules.get(nextGroupStartIndex).textFormat.isEmpty())) {
+                    nextGroupStartIndex++; // Skip chained conditions of a disabled leader
+                }
+                i = nextGroupStartIndex;
+                continue; // Move to the next potential rule group
             }
 
             List<NamedLootConfig.AdvancedRule> groupConditions = new ArrayList<>();
@@ -194,21 +203,30 @@ public class WorldRenderEventHandler {
             }
 
             if (allConditionsMet) {
+                // If a rule matches AND is enabled, use its formatting and mark as applied
                 formattedText = parseFormattedText(leader.textFormat, stack, String.valueOf(count));
-                break;
+                advancedRuleApplied = true;
+                break; // Found a matching rule, stop checking
             }
 
             i = nextIndex;
         }
 
+        // 2. If no Advanced Rule was applied, then fall back to Default/Automatic based on global 'enabled' flag
+        if (!advancedRuleApplied) {
+            // Check the global 'enabled' flag BEFORE applying default/automatic formatting
+            if (!NamedLootClient.CONFIG.enabled) {
+                return; // If global mod is disabled AND no advanced rule applied, do not render anything.
+            }
 
-        if (formattedText == null) {
+            // Normal fallback to default/automatic if global mod is enabled
             if (NamedLootClient.CONFIG.useManualFormatting) {
                 formattedText = parseFormattedText(NamedLootClient.CONFIG.textFormat, stack, String.valueOf(count));
             } else {
                 formattedText = createAutomaticFormattedText(stack, String.valueOf(count));
             }
         }
+
 
         matrices.push();
 
@@ -235,17 +253,31 @@ public class WorldRenderEventHandler {
 
         float textOffset = -textRenderer.getWidth(formattedText) / 2.0F;
 
-        // Check for detail visibility based on hover option
-        boolean shouldShowDetails = NamedLootClient.CONFIG.showDetails;
+        // Check for detail visibility based on hover option and global/rule enablement
+        // Dulu `shouldShowDetails` hanya berdasarkan `NamedLootClient.CONFIG.showDetails`
+        // Sekarang, logika ini harusnya sama dengan `formattedText` di atas:
+        // Details hanya akan ditampilkan jika:
+        // 1. Ada advanced rule yang cocok dan diaktifkan.
+        // 2. Atau, jika no advanced rule applied DAN NamedLootClient.CONFIG.enabled = true,
+        //    maka ikuti NamedLootClient.CONFIG.showDetails.
+        boolean shouldShowDetails = false;
+        if (advancedRuleApplied) {
+            // Jika ada advanced rule yang 적용, kita asumsikan detail juga diizinkan berdasarkan setting individual rule jika ada
+            // Namun, karena `ruleEnabled` hanya memengaruhi format teks, kita bisa pakai `NamedLootClient.CONFIG.showDetails`
+            // Ini bisa disesuaikan jika ingin setiap rule punya setting details sendiri
+            shouldShowDetails = NamedLootClient.CONFIG.showDetails; // For advanced rules, fall back to global showDetails
+        } else if (NamedLootClient.CONFIG.enabled) { // Hanya jika global diaktifkan
+            shouldShowDetails = NamedLootClient.CONFIG.showDetails;
+        }
 
-        // If details should only be shown on hover, check if the player is looking at this entity
+        // If showDetailsOnlyOnHover is enabled, check if the player is looking at this entity
         if (shouldShowDetails && NamedLootClient.CONFIG.showDetailsOnlyOnHover) {
             shouldShowDetails = isPlayerLookingAt(client, entity);
         }
 
         // Get enchantment details if needed
         List<Text> details = new ArrayList<>();
-        if (shouldShowDetails) {
+        if (shouldShowDetails) { // Only attempt to get enchantments if details should be shown
             Set<RegistryEntry<Enchantment>> enchantmentEntries = EnchantmentHelper.getEnchantments(entity.getStack()).getEnchantments();
             for (RegistryEntry<Enchantment> enchantmentEntry : enchantmentEntries) {
                 int level = EnchantmentHelper.getEnchantments(entity.getStack()).getLevel(enchantmentEntry);
@@ -258,7 +290,7 @@ public class WorldRenderEventHandler {
         textRenderer.draw(
                 formattedText,
                 textOffset,
-                NamedLootClient.CONFIG.showDetails && !details.isEmpty() ? -(details.size() * 10) - 10 : 0,
+                shouldShowDetails && !details.isEmpty() ? -(details.size() * 10) - 10 : 0, // Adjust Y if details present
                 0xFFFFFFFF, // Full brightness
                 false,
                 matrices.peek().getPositionMatrix(),
@@ -272,8 +304,8 @@ public class WorldRenderEventHandler {
                 0xF000F0 // Full brightness light
         );
 
-        // Draw details background if needed
-        if (NamedLootClient.CONFIG.showDetails && !details.isEmpty()) {
+        // Draw details background if needed, only if details should be shown
+        if (shouldShowDetails && !details.isEmpty()) {
             if (NamedLootClient.CONFIG.useBackgroundColor && NamedLootClient.CONFIG.useDetailBackgroundBox) {
                 int lineHeight = 10;
                 int padding = 2;
@@ -293,8 +325,8 @@ public class WorldRenderEventHandler {
             }
         }
 
-        // Render details if enabled
-        if (NamedLootClient.CONFIG.showDetails && EnchantmentHelper.hasEnchantments(entity.getStack())) {
+        // Render details if enabled and there are details to show
+        if (shouldShowDetails && !details.isEmpty()) { // Check details.isEmpty() to prevent drawing empty space
             float yOffset = 0;
             int detailColor = 0xAAAAAA;
 
@@ -318,7 +350,6 @@ public class WorldRenderEventHandler {
                 yOffset += 10;
             }
         }
-
         matrices.pop();
     }
 

@@ -4,6 +4,7 @@ import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -13,6 +14,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.item.ItemStack;
 import com.namedloot.NamedLootClient;
 import com.namedloot.WorldRenderEventHandler;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -91,6 +93,16 @@ public class NamedLootModMenu implements ModMenuApi {
             drawSectionHeader(yPos, "options.namedloot.section.general");
             yPos += 20;
 
+            // Global Enable/Disable Toggle
+            addCheckbox(
+                    "options.namedloot.mod_enabled",
+                    NamedLootClient.CONFIG.enabled,
+                    (checkbox) -> NamedLootClient.CONFIG.enabled = checkbox,
+                    this.width / 2 - 100, yPos, 200,
+                    "options.namedloot.tooltip.mod_enabled"
+            );
+            yPos += 24;
+
             // Vertical Offset Slider
             SliderWidget verticalOffsetSlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
                     Text.translatable("options.namedloot.vertical_offset", NamedLootClient.CONFIG.verticalOffset),
@@ -111,10 +123,12 @@ public class NamedLootModMenu implements ModMenuApi {
 
             // Reset vertical offset button
             this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.reset"), button -> {
-                        NamedLootClient.CONFIG.verticalOffset = 0.5F;
-                        this.init();
-                    }).dimensions(this.width / 2 + 105, yPos, 40, 20).build());
+                            Text.translatable("options.namedloot.reset"), button -> {
+                                NamedLootClient.CONFIG.verticalOffset = 0.5F;
+                                this.init();
+                            }).dimensions(this.width / 2 + 105, yPos, 40, 20)
+                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                    .build());
             yPos += 26;
 
             // Display Distance Slider
@@ -143,10 +157,12 @@ public class NamedLootModMenu implements ModMenuApi {
 
             // Reset distance button
             this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.reset"), button -> {
-                        NamedLootClient.CONFIG.displayDistance = 0.0F;
-                        this.init();
-                    }).dimensions(this.width / 2 + 105, yPos, 40, 20).build());
+                            Text.translatable("options.namedloot.reset"), button -> {
+                                NamedLootClient.CONFIG.displayDistance = 0.0F;
+                                this.init();
+                            }).dimensions(this.width / 2 + 105, yPos, 40, 20)
+                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                    .build());
             yPos += 30;
 
             // ==========================================================
@@ -160,7 +176,8 @@ public class NamedLootModMenu implements ModMenuApi {
                     "options.namedloot.override_colors",
                     NamedLootClient.CONFIG.overrideItemColors,
                     (checkbox) -> NamedLootClient.CONFIG.overrideItemColors = checkbox,
-                    this.width / 2 - 100, yPos, 200
+                    this.width / 2 - 100, yPos, 200,
+                    null
             );
             yPos += 24;
 
@@ -171,7 +188,8 @@ public class NamedLootModMenu implements ModMenuApi {
                         NamedLootClient.CONFIG.showDetails = checkbox;
                         this.init(); // Reinitialize to show/hide the sub-option
                     },
-                    this.width / 2 - 100, yPos, 200
+                    this.width / 2 - 100, yPos, 200,
+                    null
             );
             yPos += 24;
 
@@ -181,7 +199,8 @@ public class NamedLootModMenu implements ModMenuApi {
                         "options.namedloot.show_details_on_hover",
                         NamedLootClient.CONFIG.showDetailsOnlyOnHover,
                         (checkbox) -> NamedLootClient.CONFIG.showDetailsOnlyOnHover = checkbox,
-                        this.width / 2 - 80, yPos, 160
+                        this.width / 2 - 80, yPos, 160,
+                        null
                 );
                 yPos += 24;
             }
@@ -193,7 +212,8 @@ public class NamedLootModMenu implements ModMenuApi {
                         NamedLootClient.CONFIG.showNameOnHover = checkbox;
                         this.init(); // Refresh to show/hide sub-option
                     },
-                    this.width / 2 - 100, yPos, 200
+                    this.width / 2 - 100, yPos, 200,
+                    null
             );
             yPos += 24;
 
@@ -201,7 +221,8 @@ public class NamedLootModMenu implements ModMenuApi {
                     "options.namedloot.see_through",
                     NamedLootClient.CONFIG.useSeeThrough,
                     (checkbox) -> NamedLootClient.CONFIG.useSeeThrough = checkbox,
-                    this.width / 2 - 100, yPos, 200
+                    this.width / 2 - 100, yPos, 200,
+                    null
             );
             yPos += 24;
 
@@ -212,7 +233,8 @@ public class NamedLootModMenu implements ModMenuApi {
                         NamedLootClient.CONFIG.useBackgroundColor = checkbox;
                         this.init();
                     },
-                    this.width / 2 - 100, yPos, 200
+                    this.width / 2 - 100, yPos, 200,
+                    null
             );
             yPos += 24;
 
@@ -360,10 +382,12 @@ public class NamedLootModMenu implements ModMenuApi {
 
             // Reset format button
             this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.reset"), button -> {
-                        NamedLootClient.CONFIG.textFormat = "{name} x{count}";
-                        formatField.setText("{name} x{count}");
-                    }).dimensions(this.width / 2 + 105, yPos, 40, 20).build());
+                            Text.translatable("options.namedloot.reset"), button -> {
+                                NamedLootClient.CONFIG.textFormat = "{name} x{count}";
+                                formatField.setText("{name} x{count}");
+                            }).dimensions(this.width / 2 + 105, yPos, 40, 20)
+                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                    .build());
             yPos += 30;
 
             // If manual formatting is enabled, we show the color code reference
@@ -391,14 +415,16 @@ public class NamedLootModMenu implements ModMenuApi {
                         "options.namedloot.name_bold",
                         NamedLootClient.CONFIG.nameBold,
                         (checkbox) -> NamedLootClient.CONFIG.nameBold = checkbox,
-                        this.width / 2 - 100, yPos, 95
+                        this.width / 2 - 100, yPos, 95,
+                        null
                 );
 
                 addCheckbox(
                         "options.namedloot.name_italic",
                         NamedLootClient.CONFIG.nameItalic,
                         (checkbox) -> NamedLootClient.CONFIG.nameItalic = checkbox,
-                        this.width / 2 + 5, yPos, 95
+                        this.width / 2 + 5, yPos, 95,
+                        null
                 );
                 yPos += 24;
 
@@ -406,14 +432,16 @@ public class NamedLootModMenu implements ModMenuApi {
                         "options.namedloot.name_underline",
                         NamedLootClient.CONFIG.nameUnderline,
                         (checkbox) -> NamedLootClient.CONFIG.nameUnderline = checkbox,
-                        this.width / 2 - 100, yPos, 95
+                        this.width / 2 - 100, yPos, 95,
+                        null
                 );
 
                 addCheckbox(
                         "options.namedloot.name_strikethrough",
                         NamedLootClient.CONFIG.nameStrikethrough,
                         (checkbox) -> NamedLootClient.CONFIG.nameStrikethrough = checkbox,
-                        this.width / 2 + 5, yPos, 95
+                        this.width / 2 + 5, yPos, 95,
+                        null
                 );
                 yPos += 26;
 
@@ -427,16 +455,18 @@ public class NamedLootModMenu implements ModMenuApi {
 
                 // Reset name color button
                 this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.reset_colors"), button -> {
-                            NamedLootClient.CONFIG.nameRed = 1.0F;
-                            NamedLootClient.CONFIG.nameGreen = 1.0F;
-                            NamedLootClient.CONFIG.nameBlue = 1.0F;
-                            NamedLootClient.CONFIG.nameBold = false;
-                            NamedLootClient.CONFIG.nameItalic = false;
-                            NamedLootClient.CONFIG.nameUnderline = false;
-                            NamedLootClient.CONFIG.nameStrikethrough = false;
-                            this.init();
-                        }).dimensions(this.width / 2 - 50, yPos, 100, 20).build());
+                                Text.translatable("options.namedloot.reset_colors"), button -> {
+                                    NamedLootClient.CONFIG.nameRed = 1.0F;
+                                    NamedLootClient.CONFIG.nameGreen = 1.0F;
+                                    NamedLootClient.CONFIG.nameBlue = 1.0F;
+                                    NamedLootClient.CONFIG.nameBold = false;
+                                    NamedLootClient.CONFIG.nameItalic = false;
+                                    NamedLootClient.CONFIG.nameUnderline = false;
+                                    NamedLootClient.CONFIG.nameStrikethrough = false;
+                                    this.init();
+                                }).dimensions(this.width / 2 - 50, yPos, 100, 20)
+                        .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                        .build());
                 yPos += 30;
 
                 // ==========================================================
@@ -454,14 +484,16 @@ public class NamedLootModMenu implements ModMenuApi {
                         "options.namedloot.count_bold",
                         NamedLootClient.CONFIG.countBold,
                         (checkbox) -> NamedLootClient.CONFIG.countBold = checkbox,
-                        this.width / 2 - 100, yPos, 95
+                        this.width / 2 - 100, yPos, 95,
+                        null
                 );
 
                 addCheckbox(
                         "options.namedloot.count_italic",
                         NamedLootClient.CONFIG.countItalic,
                         (checkbox) -> NamedLootClient.CONFIG.countItalic = checkbox,
-                        this.width / 2 + 5, yPos, 95
+                        this.width / 2 + 5, yPos, 95,
+                        null
                 );
                 yPos += 24;
 
@@ -469,14 +501,16 @@ public class NamedLootModMenu implements ModMenuApi {
                         "options.namedloot.count_underline",
                         NamedLootClient.CONFIG.countUnderline,
                         (checkbox) -> NamedLootClient.CONFIG.countUnderline = checkbox,
-                        this.width / 2 - 100, yPos, 95
+                        this.width / 2 - 100, yPos, 95,
+                        null
                 );
 
                 addCheckbox(
                         "options.namedloot.count_strikethrough",
                         NamedLootClient.CONFIG.countStrikethrough,
                         (checkbox) -> NamedLootClient.CONFIG.countStrikethrough = checkbox,
-                        this.width / 2 + 5, yPos, 95
+                        this.width / 2 + 5, yPos, 95,
+                        null
                 );
                 yPos += 26;
 
@@ -490,16 +524,18 @@ public class NamedLootModMenu implements ModMenuApi {
 
                 // Reset count color button
                 this.addDrawableChild(ButtonWidget.builder(
-                        Text.translatable("options.namedloot.reset_colors"), button -> {
-                            NamedLootClient.CONFIG.countRed = 1.0F;
-                            NamedLootClient.CONFIG.countGreen = 1.0F;
-                            NamedLootClient.CONFIG.countBlue = 1.0F;
-                            NamedLootClient.CONFIG.countBold = false;
-                            NamedLootClient.CONFIG.countItalic = false;
-                            NamedLootClient.CONFIG.countUnderline = false;
-                            NamedLootClient.CONFIG.countStrikethrough = false;
-                            this.init();
-                        }).dimensions(this.width / 2 - 50, yPos, 100, 20).build());
+                                Text.translatable("options.namedloot.reset_colors"), button -> {
+                                    NamedLootClient.CONFIG.countRed = 1.0F;
+                                    NamedLootClient.CONFIG.countGreen = 1.0F;
+                                    NamedLootClient.CONFIG.countBlue = 1.0F;
+                                    NamedLootClient.CONFIG.countBold = false;
+                                    NamedLootClient.CONFIG.countItalic = false;
+                                    NamedLootClient.CONFIG.countUnderline = false;
+                                    NamedLootClient.CONFIG.countStrikethrough = false;
+                                    this.init();
+                                }).dimensions(this.width / 2 - 50, yPos, 100, 20)
+                        .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                        .build());
                 yPos += 30;
             }
 
@@ -532,10 +568,12 @@ public class NamedLootModMenu implements ModMenuApi {
 
             // Add Rules Button (adds a new rule group)
             this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.add_rules"), button -> {
-                        NamedLootClient.CONFIG.advancedRules.add(new NamedLootConfig.AdvancedRule());
-                        this.init();
-                    }).dimensions(this.width / 2 - 50, yPos, 100, 20).build());
+                            Text.translatable("options.namedloot.add_rules"), button -> {
+                                NamedLootClient.CONFIG.advancedRules.add(new NamedLootConfig.AdvancedRule());
+                                this.init();
+                            }).dimensions(this.width / 2 - 50, yPos, 100, 20)
+                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.add_rules")))
+                    .build());
             yPos += 30;
 
 
@@ -585,6 +623,16 @@ public class NamedLootModMenu implements ModMenuApi {
                             }).dimensions(this.width / 2 + 80, yPos, 20, 20).build());
                     yPos += 25;
 
+                    // Enable/Disable Toggle for this specific rule group
+                    addCheckbox(
+                            "options.namedloot.rule_enabled",
+                            firstRuleInGroup.ruleEnabled,
+                            (checkbox) -> firstRuleInGroup.ruleEnabled = checkbox,
+                            this.width / 2 - 100, yPos, 200,
+                            "options.namedloot.tooltip.rule_enabled"
+                    );
+                    yPos += 24;
+
                     // --- Loop through and render each condition in the group ---
                     for (int i = 0; i < groupConditions.size(); i++) {
                         final int conditionIndexInConfig = groupStartIndex + i;
@@ -612,28 +660,36 @@ public class NamedLootModMenu implements ModMenuApi {
                         int startX = this.width / 2 - 100;
 
                         ButtonWidget containsButton = ButtonWidget.builder(
-                                Text.literal("Contains"), button -> {
-                                    conditionRule.condition = "Contains";
-                                    this.init();
-                                }).dimensions(startX, yPos, buttonWidth, 20).build();
+                                        Text.literal("Contains"), button -> {
+                                            conditionRule.condition = "Contains";
+                                            this.init();
+                                        }).dimensions(startX, yPos, buttonWidth, 20)
+                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.name_match")))
+                                .build();
 
                         ButtonWidget countLessButton = ButtonWidget.builder(
-                                Text.literal("Count <"), button -> {
-                                    conditionRule.condition = "Count <";
-                                    this.init();
-                                }).dimensions(startX + (buttonWidth + buttonSpacing), yPos, buttonWidth, 20).build();
+                                        Text.literal("Count <"), button -> {
+                                            conditionRule.condition = "Count <";
+                                            this.init();
+                                        }).dimensions(startX + (buttonWidth + buttonSpacing), yPos, buttonWidth, 20)
+                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.count_less")))
+                                .build();
 
                         ButtonWidget countMoreButton = ButtonWidget.builder(
-                                Text.literal("Count >"), button -> {
-                                    conditionRule.condition = "Count >";
-                                    this.init();
-                                }).dimensions(startX + (buttonWidth + buttonSpacing) * 2, yPos, buttonWidth, 20).build();
+                                        Text.literal("Count >"), button -> {
+                                            conditionRule.condition = "Count >";
+                                            this.init();
+                                        }).dimensions(startX + (buttonWidth + buttonSpacing) * 2, yPos, buttonWidth, 20)
+                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.count_more")))
+                                .build();
 
                         ButtonWidget countEqualButton = ButtonWidget.builder(
-                                Text.literal("Count ="), button -> {
-                                    conditionRule.condition = "Count =";
-                                    this.init();
-                                }).dimensions(startX + (buttonWidth + buttonSpacing) * 3, yPos, buttonWidth, 20).build();
+                                        Text.literal("Count ="), button -> {
+                                            conditionRule.condition = "Count =";
+                                            this.init();
+                                        }).dimensions(startX + (buttonWidth + buttonSpacing) * 3, yPos, buttonWidth, 20)
+                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.count_equal")))
+                                .build();
 
                         containsButton.active = !"Contains".equals(conditionRule.condition);
                         countLessButton.active = !"Count <".equals(conditionRule.condition);
@@ -661,26 +717,30 @@ public class NamedLootModMenu implements ModMenuApi {
 
                         // New remove condition ('-') button
                         this.addDrawableChild(ButtonWidget.builder(
-                                Text.literal("−").formatted(Formatting.RED), button -> {
-                                    NamedLootClient.CONFIG.advancedRules.remove(conditionIndexInConfig);
-                                    // If the first rule in a group is deleted, promote the next one to be the new "leader"
-                                    if (conditionIndexInConfig == groupStartIndex && groupConditions.size() > 1) {
-                                        NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = firstRuleInGroup.textFormat;
-                                    }
-                                    this.init();
-                                }).dimensions(this.width / 2 + 85, yPos, 20, 20).build());
+                                        Text.literal("−").formatted(Formatting.RED), button -> {
+                                            NamedLootClient.CONFIG.advancedRules.remove(conditionIndexInConfig);
+                                            // If the first rule in a group is deleted, promote the next one to be the new "leader"
+                                            if (conditionIndexInConfig == groupStartIndex && groupConditions.size() > 1) {
+                                                NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = firstRuleInGroup.textFormat;
+                                            }
+                                            this.init();
+                                        }).dimensions(this.width / 2 + 85, yPos, 20, 20)
+                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.remove_condition")))
+                                .build());
                         yPos += 26;
                     }
 
                     // --- New Add Condition ('+') Button ---
                     this.addDrawableChild(ButtonWidget.builder(
-                            Text.translatable("options.namedloot.add_condition").formatted(Formatting.GREEN), button -> {
-                                int insertAtIndex = groupStartIndex + groupConditions.size();
-                                NamedLootConfig.AdvancedRule newCondition = new NamedLootConfig.AdvancedRule();
-                                newCondition.textFormat = ""; // Empty format marks it as a chained condition
-                                NamedLootClient.CONFIG.advancedRules.add(insertAtIndex, newCondition);
-                                this.init();
-                            }).dimensions(this.width / 2 - 100, yPos, 205, 20).build());
+                                    Text.translatable("options.namedloot.add_condition").formatted(Formatting.GREEN), button -> {
+                                        int insertAtIndex = groupStartIndex + groupConditions.size();
+                                        NamedLootConfig.AdvancedRule newCondition = new NamedLootConfig.AdvancedRule();
+                                        newCondition.textFormat = ""; // Empty format marks it as a chained condition
+                                        NamedLootClient.CONFIG.advancedRules.add(insertAtIndex, newCondition);
+                                        this.init();
+                                    }).dimensions(this.width / 2 - 100, yPos, 205, 20)
+                            .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.add_condition")))
+                            .build());
                     yPos += 26;
 
 
@@ -698,10 +758,12 @@ public class NamedLootModMenu implements ModMenuApi {
                     this.addDrawableChild(formatField);
 
                     this.addDrawableChild(ButtonWidget.builder(
-                            Text.translatable("options.namedloot.reset"), button -> {
-                                NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = "{name} x{count}";
-                                this.init();
-                            }).dimensions(this.width / 2 + 105, yPos, 40, 20).build());
+                                    Text.translatable("options.namedloot.reset"), button -> {
+                                        NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = "{name} x{count}";
+                                        this.init();
+                                    }).dimensions(this.width / 2 + 105, yPos, 40, 20)
+                            .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                            .build());
                     yPos += 26;
 
                     // Rule separator line
@@ -728,23 +790,19 @@ public class NamedLootModMenu implements ModMenuApi {
                     }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
             yPos += 20;
 
-            int referenceBoxHeight = 320;
             int minSpacing = 20;
             int referenceWidth = 230;
             int mainContentWidth = 410;
-            int referenceY = 120;
 
-            int referenceBottomY = referenceY + referenceBoxHeight + 10;
-            int saveButtonY      = yPos;
             int availableLeftSpace = (this.width / 2 - mainContentWidth / 2) - minSpacing;
             boolean canFitLeft = availableLeftSpace >= referenceWidth;
 
-            needsInlineColorReference = !(canFitLeft && referenceBottomY < saveButtonY);
+            needsInlineColorReference = !(canFitLeft); //!(canFitLeft && referenceBottomY < saveButtonY);
 
             int extraTopPadding = 12;
             int finalYPos = yPos;
             int computedContentHeight;
-            if (!canFitLeft ) { //&& needsInlineColorReference) {
+            if (needsInlineColorReference) {
                 // Reference ditempatkan inline dengan jarak ekstra
                 int inlineY = yPos + extraTopPadding;
                 this.addDrawable((context, mouseX, mouseY, delta) -> renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20, inlineY, false));
@@ -775,37 +833,21 @@ public class NamedLootModMenu implements ModMenuApi {
         }
 
         // Helper method for adding checkboxes with consistent styling
-        private void addCheckbox(String translationKey, boolean initialValue, Consumer<Boolean> callback,
-                                 int x, int y, int width) {
-            // Use larger, more visible checkbox symbols
-            Text checkboxLabel = Text.empty()
-                    .append(Text.literal(initialValue ? "☑ " : "☐ ")
-                            .formatted(Formatting.GREEN)) // Color the checkbox for better visibility
+        private void addCheckbox(String translationKey, boolean configValue, Consumer<Boolean> configSetter,
+                                 int x, int y, int width, @Nullable String tooltipKey) {
+            MutableText label = Text.empty()
+                    .append(Text.literal(configValue ? "☑ " : "☐ ").formatted(Formatting.GREEN))
                     .append(Text.translatable(translationKey));
 
-            ButtonWidget checkboxButton = ButtonWidget.builder(
-                    checkboxLabel,
-                    button -> {
-                        // Toggle the state by parsing the current button text
-                        boolean currentState = button.getMessage().getString().startsWith("☑");
-                        boolean newState = !currentState;
+            ButtonWidget checkbox = ButtonWidget.builder(label, button -> {
+                        boolean newState = !configValue;
+                        configSetter.accept(newState);
+                        this.init(); // refresh
+                    }).dimensions(x, y, width, 20)
+                    .tooltip(tooltipKey != null ? Tooltip.of(Text.translatable(tooltipKey)) : null)
+                    .build();
 
-                        // Update button text with larger, more visible symbols
-                        Text newLabel = Text.empty()
-                                .append(Text.literal(newState ? "☑ " : "☐ ")
-                                        .formatted(newState ? Formatting.GREEN : Formatting.GRAY)) // Color based on state
-                                .append(Text.translatable(translationKey));
-
-                        button.setMessage(newLabel);
-
-                        // Call the callback with the new state
-                        if (callback != null) {
-                            callback.accept(newState);
-                        }
-                    }
-            ).dimensions(x, y, width, 20).build();
-
-            this.addDrawableChild(checkboxButton);
+            this.addDrawableChild(checkbox);
         }
 
         private void addNameColorSlider(int y, String type, float initialValue) {
@@ -954,7 +996,7 @@ public class NamedLootModMenu implements ModMenuApi {
             int titleY = 15;
 
             context.drawCenteredTextWithShadow(this.textRenderer, titleText, titleX, titleY, 0xFFFFFF);
-            context.fill(this.width / 4, titleY + 12, this.width * 3/4, titleY + 13, 0x55FFFFFF);
+            //context.fill(this.width / 4, titleY + 12, this.width * 3/4, titleY + 13, 0x55FFFFFF);
 
             // Render tab buttons manually (always visible, not affected by scroll)
             renderTabButtons(context, mouseX, mouseY, delta);

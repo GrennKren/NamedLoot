@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class NamedLootConfig {
+    public boolean enabled = true;
+
     // Default values
     public float verticalOffset = 0.5F;
     public float displayDistance = 0.0F; // 0 means unlimited
@@ -67,6 +69,8 @@ public class NamedLootConfig {
         public String condition = "Contains";
         public String value = "";
         public String textFormat = "{name} x{count}";
+
+        public boolean ruleEnabled = true;
 
         public AdvancedRule() {}
     }

@@ -76,5 +76,19 @@
   "options.namedloot.format_code.italic": "Italic",
   "options.namedloot.format_code.underline": "Underline",
   "options.namedloot.format_code.strikethrough": "Strikethrough",
-  "options.namedloot.format_code.reset": "Reset"
+  "options.namedloot.format_code.reset": "Reset",
+
+  "options.namedloot.tooltip.name_match": "Matches item names",
+  "options.namedloot.tooltip.count_less": "Matches items with count less than value",
+  "options.namedloot.tooltip.count_more": "Matches items with count greater than value",
+  "options.namedloot.tooltip.count_equal": "Matches items with count equal to value",
+  "options.namedloot.tooltip.remove_condition": "Removes this specific condition from the rule group",
+  "options.namedloot.tooltip.add_condition": "Adds another AND condition to this rule group",
+  "options.namedloot.tooltip.reset_format": "Resets the format for this rule to default",
+  "options.namedloot.tooltip.rule_enabled": "Enable or disable this rule group entirely",
+  "options.namedloot.tooltip.mod_enabled": "Globally turn NamedLoot features on or off",
+
+  "options.namedloot.mod_enabled": "Enable Mod",
+  "options.namedloot.rule_enabled": "Enable Rule"
+
 }
