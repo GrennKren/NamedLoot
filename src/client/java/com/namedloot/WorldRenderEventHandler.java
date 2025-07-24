@@ -1,5 +1,6 @@
 package com.namedloot;
 
+import com.namedloot.config.NamedLootConfig;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -155,23 +156,53 @@ public class WorldRenderEventHandler {
         if(matrices == null) {
             return;
         }
-        // Get item count
-        int count = entity.getStack().getCount();
-        String countText = String.valueOf(count);
+        MutableText formattedText = null;
+        ItemStack stack = entity.getStack();
+        String name = stack.getName().getString();
+        int count = stack.getCount();
+        List<NamedLootConfig.AdvancedRule> rules = NamedLootClient.CONFIG.advancedRules;
 
-        // Create formatted text based on whether we're using manual formatting or automatic coloring
-        MutableText formattedText;
+        int i = 0;
+        while (i < rules.size()) {
+            NamedLootConfig.AdvancedRule leader = rules.get(i);
+            if (leader.textFormat == null || leader.textFormat.isEmpty()) {
+                i++;
+                continue;
+            }
 
-        if (NamedLootClient.CONFIG.useManualFormatting) {
-            // Use manual formatting with & codes
-            formattedText = parseFormattedText(NamedLootClient.CONFIG.textFormat, entity.getStack(), countText);
-        } else {
-            // Use our custom styling
-            formattedText = createAutomaticFormattedText(entity.getStack(), countText);
+            List<NamedLootConfig.AdvancedRule> groupConditions = new ArrayList<>();
+            groupConditions.add(leader);
+            int nextIndex = i + 1;
+            while (nextIndex < rules.size() && (rules.get(nextIndex).textFormat == null || rules.get(nextIndex).textFormat.isEmpty())) {
+                groupConditions.add(rules.get(nextIndex));
+                nextIndex++;
+            }
+
+            boolean allConditionsMet = true;
+            for (NamedLootConfig.AdvancedRule condition : groupConditions) {
+                if (!checkCondition(condition, name, count)) {
+                    allConditionsMet = false;
+                    break;
+                }
+            }
+
+            if (allConditionsMet) {
+                formattedText = parseFormattedText(leader.textFormat, stack, String.valueOf(count));
+                break;
+            }
+
+            i = nextIndex;
         }
 
-        // Rest of the method remains unchanged
-        // Setup for rendering
+
+        if (formattedText == null) {
+            if (NamedLootClient.CONFIG.useManualFormatting) {
+                formattedText = parseFormattedText(NamedLootClient.CONFIG.textFormat, stack, String.valueOf(count));
+            } else {
+                formattedText = createAutomaticFormattedText(stack, String.valueOf(count));
+            }
+        }
+
         matrices.push();
 
         // Use getLerpedPos for smoother interpolation
@@ -282,6 +313,38 @@ public class WorldRenderEventHandler {
         }
 
         matrices.pop();
+    }
+
+    private static boolean checkCondition(NamedLootConfig.AdvancedRule rule, String name, int count) {
+        // Nilai kosong seharusnya tidak pernah cocok untuk mencegah bug.
+        if (rule.value == null || rule.value.isEmpty()) {
+            return false;
+        }
+
+        switch (rule.condition) {
+            case "Contains":
+                // Pencocokan dibuat tidak case-sensitive untuk kemudahan penggunaan.
+                return name.toLowerCase().contains(rule.value.toLowerCase());
+            case "Count <":
+                try {
+                    return count < Integer.parseInt(rule.value);
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+            case "Count >":
+                try {
+                    return count > Integer.parseInt(rule.value);
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+            case "Count =":
+                try {
+                    return count == Integer.parseInt(rule.value);
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+        }
+        return false;
     }
 
 
@@ -475,6 +538,7 @@ public class WorldRenderEventHandler {
             case 'd' -> currentStyle.withColor(TextColor.fromRgb(0xFF55FF));
             case 'e' -> currentStyle.withColor(TextColor.fromRgb(0xFFFF55));
             case 'f' -> currentStyle.withColor(TextColor.fromRgb(0xFFFFFF));
+            case 'k' -> currentStyle.withObfuscated(true);
             case 'l' -> currentStyle.withBold(true);
             case 'm' -> currentStyle.withStrikethrough(true);
             case 'n' -> currentStyle.withUnderline(true);

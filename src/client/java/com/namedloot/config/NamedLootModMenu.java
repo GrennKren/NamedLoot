@@ -14,6 +14,9 @@ import net.minecraft.item.ItemStack;
 import com.namedloot.NamedLootClient;
 import com.namedloot.WorldRenderEventHandler;
 
+import java.util.List;
+import java.util.ArrayList;
+
 import java.util.function.Consumer;
 
 public class NamedLootModMenu implements ModMenuApi {
@@ -45,7 +48,11 @@ public class NamedLootModMenu implements ModMenuApi {
         private static final int SECTION_TITLE_COLOR = 0xFFFFAA00;
         private static final int SECTION_SEPARATOR_COLOR = 0x66FFFFFF;
 
+        private boolean needsInlineColorReference = false;
+
         // private List<CheckboxWidget> checkboxes = new ArrayList<>();
+
+        private int currentTab = 0; // 0: Default, 1: Advanced
 
         public NamedLootConfigScreen(Screen parent) {
             super(Text.translatable("text.namedloot.config"));
@@ -54,25 +61,29 @@ public class NamedLootModMenu implements ModMenuApi {
 
         @Override
         protected void init() {
-            int yBase = this.height / 8;
-            int yPos = yBase + scrollOffset;
+            // Increased space below tabs
 
-            // Handle window resizing by adjusting scroll offset
             if (previousHeight != 0 && previousHeight != this.height) {
-                // Ensure the scroll offset doesn't create empty space at the bottom after resize
-                int visibleHeight = this.height - 50;
-                if (contentHeight - Math.abs(scrollOffset) < visibleHeight) {
-                    // Recalculate to show bottom content properly
-                    scrollOffset = Math.min(0, -(contentHeight - visibleHeight));
-                }
+                validateScrollOffset();
             }
-
-            // Store the current height for future comparison
             previousHeight = this.height;
 
-            // Clear existing widgets and checkbox list
             this.clearChildren();
-            //this.checkboxes.clear();
+
+            // Store tab buttons separately - don't add them as drawableChild yet
+            // We'll render them manually in render()
+
+            if (currentTab == 0) {
+                renderDefaultTab();
+            } else {
+                renderAdvancedTab();
+            }
+
+            validateScrollOffset();
+        }
+
+        private void renderDefaultTab() {
+            int yPos = 80 + scrollOffset;
 
             // ==========================================================
             // GENERAL SECTION
@@ -359,94 +370,7 @@ public class NamedLootModMenu implements ModMenuApi {
             if (NamedLootClient.CONFIG.useManualFormatting) {
                 this.addDrawable((context, mouseX, mouseY, delta) -> {
                     // Draw color code reference
-                    int colorY = this.formatField.getY() + 26;
-
-                    context.drawTextWithShadow(this.textRenderer,
-                            Text.translatable("options.namedloot.format_codes").formatted(Formatting.UNDERLINE),
-                            this.width / 2 - 100, colorY, 0xFFFFFF);
-                    colorY += 16;
-
-                    // Colors - First Column
-                    int leftX = this.width / 2 - 100;
-                    int rightX = this.width / 2 + 20;
-
-                    // First row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&0 ").append(
-                            Text.literal("Black").formatted(Formatting.BLACK)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&8 ").append(
-                            Text.literal("Dark Gray").formatted(Formatting.DARK_GRAY)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Second row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&1 ").append(
-                            Text.literal("Dark Blue").formatted(Formatting.DARK_BLUE)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&9 ").append(
-                            Text.literal("Blue").formatted(Formatting.BLUE)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Third row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&2 ").append(
-                            Text.literal("Dark Green").formatted(Formatting.DARK_GREEN)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&a ").append(
-                            Text.literal("Green").formatted(Formatting.GREEN)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Fourth row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&3 ").append(
-                            Text.literal("Dark Aqua").formatted(Formatting.DARK_AQUA)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&b ").append(
-                            Text.literal("Aqua").formatted(Formatting.AQUA)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Fifth row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&4 ").append(
-                            Text.literal("Dark Red").formatted(Formatting.DARK_RED)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&c ").append(
-                            Text.literal("Red").formatted(Formatting.RED)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Sixth row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&5 ").append(
-                            Text.literal("Dark Purple").formatted(Formatting.DARK_PURPLE)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&d ").append(
-                            Text.literal("Light Purple").formatted(Formatting.LIGHT_PURPLE)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Seventh row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&6 ").append(
-                            Text.literal("Gold").formatted(Formatting.GOLD)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&e ").append(
-                            Text.literal("Yellow").formatted(Formatting.YELLOW)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    // Eighth row
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&7 ").append(
-                            Text.literal("Gray").formatted(Formatting.GRAY)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&f ").append(
-                            Text.literal("White").formatted(Formatting.WHITE)), rightX, colorY, 0xFFFFFF);
-                    colorY += 18;
-
-                    // Formatting codes section header
-                    context.drawTextWithShadow(this.textRenderer,
-                            Text.literal("Formatting Codes:").formatted(Formatting.UNDERLINE),
-                            this.width / 2 - 100, colorY, 0xFFFFFF);
-                    colorY += 16;
-
-                    // Formatting codes - distribute in two columns for better space usage
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&l ").append(
-                            Text.literal("Bold").formatted(Formatting.BOLD)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&n ").append(
-                            Text.literal("Underline").formatted(Formatting.UNDERLINE)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&o ").append(
-                            Text.literal("Italic").formatted(Formatting.ITALIC)), leftX, colorY, 0xFFFFFF);
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&m ").append(
-                            Text.literal("Strikethrough").formatted(Formatting.STRIKETHROUGH)), rightX, colorY, 0xFFFFFF);
-                    colorY += 12;
-
-                    context.drawTextWithShadow(this.textRenderer, Text.literal("&r ").append(
-                            Text.literal("Reset")), leftX, colorY, 0xFFFFFF);
+                    renderColorCodeReference(context);
                 });
 
                 yPos += 170; // Add space for all the color codes
@@ -592,11 +516,248 @@ public class NamedLootModMenu implements ModMenuApi {
             // Set initial focus to text field
             this.setInitialFocus(formatField);
 
-            // Calculate final content height
-            int computedContentHeight = yPos - (yBase + scrollOffset);
-            this.contentHeight = computedContentHeight + 50;
-
+            // Calculate final content height based on actual rendered positions
+            int finalYPos = yPos;
+            this.contentHeight = finalYPos - (80 + scrollOffset);
         }
+
+        private void renderAdvancedTab() {
+            int yPos = 80 + scrollOffset;
+
+            // ==========================================================
+            // ADVANCED RULES SECTION
+            // ==========================================================
+            drawSectionHeader(yPos, "options.namedloot.section.advanced_rules");
+            yPos += 20;
+
+            // Add Rules Button (adds a new rule group)
+            this.addDrawableChild(ButtonWidget.builder(
+                    Text.translatable("options.namedloot.add_rules"), button -> {
+                        NamedLootClient.CONFIG.advancedRules.add(new NamedLootConfig.AdvancedRule());
+                        this.init();
+                    }).dimensions(this.width / 2 - 50, yPos, 100, 20).build());
+            yPos += 30;
+
+
+            if (NamedLootClient.CONFIG.advancedRules.isEmpty()) {
+                final int noRulesY = yPos;
+                this.addDrawable((context, mouseX, mouseY, delta) -> {
+                    Text helpText = Text.translatable("options.namedloot.no_rules_help").formatted(Formatting.GRAY, Formatting.ITALIC);
+                    context.drawCenteredTextWithShadow(this.textRenderer, helpText,
+                            this.width / 2, noRulesY, 0xFFFFFF);
+                });
+                yPos += 40;
+            } else {
+                int ruleDisplayIndex = 1;
+                int configRuleIndex = 0;
+                while (configRuleIndex < NamedLootClient.CONFIG.advancedRules.size()) {
+                    final int groupStartIndex = configRuleIndex;
+                    NamedLootConfig.AdvancedRule firstRuleInGroup = NamedLootClient.CONFIG.advancedRules.get(groupStartIndex);
+
+                    // --- Find all conditions that belong to this rule group ---
+                    final List<NamedLootConfig.AdvancedRule> groupConditions = new ArrayList<>();
+                    groupConditions.add(firstRuleInGroup);
+
+                    int nextIndex = groupStartIndex + 1;
+                    while (nextIndex < NamedLootClient.CONFIG.advancedRules.size()) {
+                        NamedLootConfig.AdvancedRule nextRule = NamedLootClient.CONFIG.advancedRules.get(nextIndex);
+                        // A chained condition is identified by a null or empty textFormat string.
+                        if (nextRule.textFormat != null && !nextRule.textFormat.isEmpty()) {
+                            break; // This is the start of a new rule group.
+                        }
+                        groupConditions.add(nextRule);
+                        nextIndex++;
+                    }
+
+                    // --- Render Rule Header and Remove Button for the entire group ---
+                    final int headerY = yPos;
+                    int finalRuleDisplayIndex = ruleDisplayIndex;
+                    this.addDrawable((context, mouseX, mouseY, delta) -> {
+                        Text ruleTitle = Text.literal("Rule " + finalRuleDisplayIndex).formatted(Formatting.BOLD);
+                        context.drawTextWithShadow(this.textRenderer, ruleTitle,
+                                this.width / 2 - 100, headerY, SECTION_TITLE_COLOR);
+                    });
+
+                    this.addDrawableChild(ButtonWidget.builder(
+                            Text.literal("−").formatted(Formatting.RED), btn -> {
+                                NamedLootClient.CONFIG.advancedRules.removeAll(groupConditions);
+                                this.init();
+                            }).dimensions(this.width / 2 + 80, yPos, 20, 20).build());
+                    yPos += 25;
+
+                    // --- Loop through and render each condition in the group ---
+                    for (int i = 0; i < groupConditions.size(); i++) {
+                        final int conditionIndexInConfig = groupStartIndex + i;
+                        final NamedLootConfig.AdvancedRule conditionRule = groupConditions.get(i);
+
+                        if (i > 0) {
+                            final int andY = yPos;
+                            this.addDrawable((context, mouseX, mouseY, delta) ->
+                                    context.drawCenteredTextWithShadow(this.textRenderer,
+                                            Text.literal("AND").formatted(Formatting.YELLOW, Formatting.BOLD),
+                                            this.width / 2, andY, 0xFFFFFF));
+                            yPos += 15;
+                        }
+
+                        final int conditionLabelY = yPos;
+                        this.addDrawable((context, mouseX, mouseY, delta) ->
+                                context.drawTextWithShadow(this.textRenderer,
+                                        Text.translatable("options.namedloot.condition"),
+                                        this.width / 2 - 100, conditionLabelY, 0xFFFFFF));
+                        yPos += 16;
+
+                        // Condition toggle buttons
+                        int buttonWidth = 45;
+                        int buttonSpacing = 5;
+                        int startX = this.width / 2 - 100;
+
+                        ButtonWidget containsButton = ButtonWidget.builder(
+                                Text.literal("Contains"), button -> {
+                                    conditionRule.condition = "Contains";
+                                    this.init();
+                                }).dimensions(startX, yPos, buttonWidth, 20).build();
+
+                        ButtonWidget countLessButton = ButtonWidget.builder(
+                                Text.literal("Count <"), button -> {
+                                    conditionRule.condition = "Count <";
+                                    this.init();
+                                }).dimensions(startX + (buttonWidth + buttonSpacing), yPos, buttonWidth, 20).build();
+
+                        ButtonWidget countMoreButton = ButtonWidget.builder(
+                                Text.literal("Count >"), button -> {
+                                    conditionRule.condition = "Count >";
+                                    this.init();
+                                }).dimensions(startX + (buttonWidth + buttonSpacing) * 2, yPos, buttonWidth, 20).build();
+
+                        ButtonWidget countEqualButton = ButtonWidget.builder(
+                                Text.literal("Count ="), button -> {
+                                    conditionRule.condition = "Count =";
+                                    this.init();
+                                }).dimensions(startX + (buttonWidth + buttonSpacing) * 3, yPos, buttonWidth, 20).build();
+
+                        containsButton.active = !"Contains".equals(conditionRule.condition);
+                        countLessButton.active = !"Count <".equals(conditionRule.condition);
+                        countMoreButton.active = !"Count >".equals(conditionRule.condition);
+                        countEqualButton.active = !"Count =".equals(conditionRule.condition);
+
+                        this.addDrawableChild(containsButton);
+                        this.addDrawableChild(countLessButton);
+                        this.addDrawableChild(countMoreButton);
+                        this.addDrawableChild(countEqualButton);
+                        yPos += 26;
+
+                        // Value label, text field, and the new remove condition button
+                        final int valueLabelY = yPos;
+                        this.addDrawable((context, mouseX, mouseY, delta) ->
+                                context.drawTextWithShadow(this.textRenderer,
+                                        Text.translatable("options.namedloot.rule_value"),
+                                        this.width / 2 - 100, valueLabelY, 0xFFFFFF));
+                        yPos += 16;
+
+                        TextFieldWidget valueField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, yPos, 180, 20, Text.literal(""));
+                        valueField.setText(conditionRule.value);
+                        valueField.setChangedListener(text -> conditionRule.value = text);
+                        this.addDrawableChild(valueField);
+
+                        // New remove condition ('-') button
+                        this.addDrawableChild(ButtonWidget.builder(
+                                Text.literal("−").formatted(Formatting.RED), button -> {
+                                    NamedLootClient.CONFIG.advancedRules.remove(conditionIndexInConfig);
+                                    // If the first rule in a group is deleted, promote the next one to be the new "leader"
+                                    if (conditionIndexInConfig == groupStartIndex && groupConditions.size() > 1) {
+                                        NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = firstRuleInGroup.textFormat;
+                                    }
+                                    this.init();
+                                }).dimensions(this.width / 2 + 85, yPos, 20, 20).build());
+                        yPos += 26;
+                    }
+
+                    // --- New Add Condition ('+') Button ---
+                    this.addDrawableChild(ButtonWidget.builder(
+                            Text.translatable("options.namedloot.add_condition").formatted(Formatting.GREEN), button -> {
+                                int insertAtIndex = groupStartIndex + groupConditions.size();
+                                NamedLootConfig.AdvancedRule newCondition = new NamedLootConfig.AdvancedRule();
+                                newCondition.textFormat = ""; // Empty format marks it as a chained condition
+                                NamedLootClient.CONFIG.advancedRules.add(insertAtIndex, newCondition);
+                                this.init();
+                            }).dimensions(this.width / 2 - 100, yPos, 205, 20).build());
+                    yPos += 26;
+
+
+                    // --- Shared Format Field for the Rule Group ---
+                    final int formatLabelY = yPos;
+                    this.addDrawable((context, mouseX, mouseY, delta) ->
+                            context.drawTextWithShadow(this.textRenderer,
+                                    Text.translatable("options.namedloot.rule_format"),
+                                    this.width / 2 - 100, formatLabelY, 0xFFFFFF));
+                    yPos += 16;
+
+                    TextFieldWidget formatField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, yPos, 200, 20, Text.literal(""));
+                    formatField.setText(firstRuleInGroup.textFormat);
+                    formatField.setChangedListener(text -> NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = text);
+                    this.addDrawableChild(formatField);
+
+                    this.addDrawableChild(ButtonWidget.builder(
+                            Text.translatable("options.namedloot.reset"), button -> {
+                                NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = "{name} x{count}";
+                                this.init();
+                            }).dimensions(this.width / 2 + 105, yPos, 40, 20).build());
+                    yPos += 26;
+
+                    // Rule separator line
+                    if (configRuleIndex + groupConditions.size() < NamedLootClient.CONFIG.advancedRules.size()) {
+                        final int separatorY = yPos;
+                        this.addDrawable((context, mouseX, mouseY, delta) -> context.fill(this.width / 2 - 80, separatorY,
+                                this.width / 2 + 80, separatorY + 1, 0x33FFFFFF));
+                        yPos += 10;
+                    }
+                    yPos += 10;
+
+                    // Update loop counters
+                    configRuleIndex += groupConditions.size();
+                    ruleDisplayIndex++;
+                }
+            }
+
+            // Save and close button (consistent with default tab)
+            this.addDrawableChild(ButtonWidget.builder(
+                    Text.translatable("options.namedloot.save_and_close"), button -> {
+                        NamedLootClient.saveConfig();
+                        assert this.client != null;
+                        this.client.setScreen(this.parent);
+                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+            yPos += 20;
+
+            int referenceBoxHeight = 320;
+            int minSpacing = 20;
+            int referenceWidth = 230;
+            int mainContentWidth = 410;
+            int referenceY = 120;
+
+            int referenceBottomY = referenceY + referenceBoxHeight + 10;
+            int saveButtonY      = yPos;
+            int availableLeftSpace = (this.width / 2 - mainContentWidth / 2) - minSpacing;
+            boolean canFitLeft = availableLeftSpace >= referenceWidth;
+
+            needsInlineColorReference = !(canFitLeft && referenceBottomY < saveButtonY);
+
+            int extraTopPadding = 12;
+            int finalYPos = yPos;
+            int computedContentHeight;
+            if (!canFitLeft ) { //&& needsInlineColorReference) {
+                // Reference ditempatkan inline dengan jarak ekstra
+                int inlineY = yPos + extraTopPadding;
+                this.addDrawable((context, mouseX, mouseY, delta) -> renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20, inlineY, false));
+                //yPos += extraTopPadding + referenceBoxHeight;
+                computedContentHeight = finalYPos - (80 + scrollOffset) + 190;
+            }else{
+                computedContentHeight = finalYPos - (80 + scrollOffset);
+            }
+
+
+            this.contentHeight = computedContentHeight; //Math.max(computedContentHeight, this.contentHeight);
+        }
+
 
         // Helper method to draw a section header with a separator line
         private void drawSectionHeader(int yPos, String translationKey) {
@@ -693,25 +854,24 @@ public class NamedLootModMenu implements ModMenuApi {
 
         // Add a new method to ensure the scrollOffset is valid based on current dimensions
         private void validateScrollOffset() {
-            int visibleHeight = this.height - 50;
+            final int contentYStart = 80;
+            final int bottomMargin = 25;
+            int visibleHeight = this.height - contentYStart - bottomMargin;
+
             if (scrollOffset > 0) {
                 scrollOffset = 0;
-            } else if (contentHeight <= visibleHeight) {
-                // If all content fits, no need to scroll
+            }
+
+            if (contentHeight <= visibleHeight) {
                 scrollOffset = 0;
             } else if (scrollOffset < -(contentHeight - visibleHeight)) {
-                // Limit scrolling so we don't have empty space at the bottom
                 scrollOffset = -(contentHeight - visibleHeight);
             }
         }
 
         @Override
         public void resize(net.minecraft.client.MinecraftClient client, int width, int height) {
-            // When the window is resized, validate the scroll position
             super.resize(client, width, height);
-
-            // After resize is complete, adjust the scroll offset based on the new dimensions
-            validateScrollOffset();
         }
 
 
@@ -743,12 +903,33 @@ public class NamedLootModMenu implements ModMenuApi {
 
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            // Start scrolling when mouse is clicked in empty area
-            if (button == 0 && mouseX > this.width - 15) { // Left mouse button near scrollbar
+            // Handle tab button clicks first (before scissor area)
+            if (mouseY >= 35 && mouseY <= 55) {
+                if (mouseX >= (double) this.width / 2 - 100 && mouseX <= (double) this.width / 2 - 5) {
+                    // Default tab clicked
+                    currentTab = 0;
+                    this.init();
+                    return true;
+                } else if (mouseX >= (double) this.width / 2 + 5 && mouseX <= (double) this.width / 2 + 100) {
+                    // Advanced tab clicked
+                    currentTab = 1;
+                    this.init();
+                    return true;
+                }
+            }
+
+            // Handle scrollbar clicks
+            if (button == 0 && mouseX > this.width - 15) {
                 isScrolling = true;
                 return true;
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+
+            // Only handle other clicks if they're in the content area
+            if (mouseY >= 80) {
+                return super.mouseClicked(mouseX, mouseY, button);
+            }
+
+            return false;
         }
 
         @Override
@@ -762,73 +943,107 @@ public class NamedLootModMenu implements ModMenuApi {
 
         @Override
         public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            //this.renderBackground(context, mouseX, mouseY, delta);
+            // Render background
+            this.renderBackground(context, mouseX, mouseY, delta);
 
-            // Draw title at a fixed position with prettier styling
+            // Draw title
             Text titleText = Text.literal("✦ ").formatted(Formatting.GOLD)
                     .append(this.title)
                     .append(Text.literal(" ✦").formatted(Formatting.GOLD));
-
-            // Draw prettier title with outline effect
             int titleX = this.width / 2;
             int titleY = 15;
 
-            // Draw subtle divider under the title
+            context.drawCenteredTextWithShadow(this.textRenderer, titleText, titleX, titleY, 0xFFFFFF);
             context.fill(this.width / 4, titleY + 12, this.width * 3/4, titleY + 13, 0x55FFFFFF);
 
-            context.drawCenteredTextWithShadow(this.textRenderer, titleText, titleX, titleY, 0xFFFFFF);
+            // Render tab buttons manually (always visible, not affected by scroll)
+            renderTabButtons(context, mouseX, mouseY, delta);
 
-            // Render all widgets (they already have the scroll offset applied)
+            // Create scissor area for scrollable content
+            int clipStartY = 80;
+            int clipHeight = this.height - clipStartY - 25;
+
+            context.enableScissor(0, clipStartY, this.width, clipStartY + clipHeight);
+
+            // Render all scrollable content
             super.render(context, mouseX, mouseY, delta);
 
-            // Render color previews and format preview example
+            // Render color previews
             renderColorPreviews(context);
 
-            // Draw scrollbar if needed
-            int visibleHeight = this.height - 50;
-            if (contentHeight > visibleHeight) {
+            // Render color code reference for Advanced tab (outside scissor)
+            renderColorCodeReference(context);
+
+            context.disableScissor();
+
+            // Draw scrollbar outside scissor area
+            if (contentHeight > clipHeight) {
                 drawScrollbar(context);
             }
         }
 
+        private void renderTabButtons(DrawContext context, int mouseX, int mouseY, float delta) {
+            // Create tab buttons
+            ButtonWidget defaultButton = ButtonWidget.builder(
+                    Text.literal("Default"), button -> {
+                        currentTab = 0;
+                        this.init();
+                    }).dimensions(this.width / 2 - 100, 35, 95, 20).build();
+
+            ButtonWidget advancedButton = ButtonWidget.builder(
+                    Text.literal("Advanced"), button -> {
+                        currentTab = 1;
+                        this.init();
+                    }).dimensions(this.width / 2 + 5, 35, 95, 20).build();
+
+            // Highlight active tab by making it inactive (darker)
+            if (currentTab == 0) {
+                defaultButton.active = false;
+            } else {
+                advancedButton.active = false;
+            }
+
+            // Render buttons
+            defaultButton.render(context, mouseX, mouseY, delta);
+            advancedButton.render(context, mouseX, mouseY, delta);
+        }
+
+
+
         // Improved scrollbar with smoother appearance
         private void drawScrollbar(DrawContext context) {
-            // Calculate scrollbar position and size
-            int visibleHeight = this.height - 50;
+            int visibleHeight = this.height - 80 - 25;
             float contentRatio = (float)visibleHeight / Math.max(contentHeight, 1);
-            int scrollbarHeight = Math.max((int)(visibleHeight * contentRatio), 32); // Minimum scrollbar height
+            int scrollbarHeight = Math.max((int)(visibleHeight * contentRatio), 32);
 
-            // Calculate scrollbar position - handle the case when contentHeight <= visibleHeight
             float scrollRatio = 0;
             if (contentHeight > visibleHeight) {
                 scrollRatio = (float)Math.abs(scrollOffset) / Math.max(1, contentHeight - visibleHeight);
             }
 
-            int scrollbarY = 25 + (int)((visibleHeight - scrollbarHeight) * scrollRatio);
+            int scrollbarY = 80 + (int)((visibleHeight - scrollbarHeight) * scrollRatio);
             int scrollbarX = this.width - 10;
 
-            // Draw scrollbar track (semi-transparent gradient background)
             context.fillGradient(
-                    scrollbarX, 25,
+                    scrollbarX, 80,
                     scrollbarX + 4, this.height - 25,
                     0x40000000, 0x40202020
             );
 
-            // Draw scrollbar thumb (handle) with gradient for better appearance
             context.fillGradient(
                     scrollbarX, scrollbarY,
                     scrollbarX + 4, scrollbarY + scrollbarHeight,
                     0x80BBBBBB, 0x80999999
             );
 
-            // Add subtle border to the scrollbar thumb
             context.drawBorder(scrollbarX, scrollbarY, 4, scrollbarHeight, 0x40FFFFFF);
         }
 
         // Separate method to render color previews
+        // Separate method to render color previews (hanya untuk Default tab)
         private void renderColorPreviews(DrawContext context) {
-            // Only show color previews if not using manual formatting
-            if (!NamedLootClient.CONFIG.useManualFormatting) {
+            // Only show color previews if not using manual formatting AND in Default tab
+            if (currentTab == 0 && !NamedLootClient.CONFIG.useManualFormatting) {
                 // Render name color preview with gradient for a more appealing look
                 int namePreviewY = nameColorLabelYPos + 88;
                 // Name color
@@ -854,38 +1069,160 @@ public class NamedLootModMenu implements ModMenuApi {
                 }
             }
 
-            // Fix the format preview text position
-            int formatPreviewY = this.formatField.getY() - 20;
+            // Format preview hanya untuk Default tab
+            if (currentTab == 0) {
+                // Fix the format preview text position
+                int formatPreviewY = this.formatField != null ? this.formatField.getY() - 20 : 0;
 
-            // Only render the preview if it's in the visible area
-            if (formatPreviewY > 25 && formatPreviewY < this.height - 25) {
-                // Create the preview text
-                MutableText previewText = createPreviewText();
+                // Only render the preview if it's in the visible area
+                if (formatPreviewY > 25 && formatPreviewY < this.height - 25) {
+                    // Create the preview text
+                    MutableText previewText = createPreviewText();
 
-                // Draw the preview text in a dedicated box with a subtle gradient background
-                int boxWidth = 200;
-                int boxHeight = 20;
-                int boxX = this.width / 2 - boxWidth / 2;
-                int boxY = formatPreviewY - 5;
+                    // Draw the preview text in a dedicated box with a subtle gradient background
+                    int boxWidth = 200;
+                    int boxHeight = 20;
+                    int boxX = this.width / 2 - boxWidth / 2;
+                    int boxY = formatPreviewY - 5;
 
-                // Draw a pretty gradient background for the preview
-                context.fillGradient(
-                        boxX, boxY,
-                        boxX + boxWidth, boxY + boxHeight,
-                        0x40202040, 0x40404080
-                );
+                    // Draw a pretty gradient background for the preview
+                    context.fillGradient(
+                            boxX, boxY,
+                            boxX + boxWidth, boxY + boxHeight,
+                            0x40202040, 0x40404080
+                    );
 
-                // Add subtle border
-                context.drawBorder(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
+                    // Add subtle border
+                    context.drawBorder(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
 
-                context.drawCenteredTextWithShadow(
-                        this.textRenderer,
-                        previewText,
-                        this.width / 2,
-                        formatPreviewY,
-                        0xFFFFFFFF
-                );
+                    context.drawCenteredTextWithShadow(
+                            this.textRenderer,
+                            previewText,
+                            this.width / 2,
+                            formatPreviewY,
+                            0xFFFFFFFF
+                    );
+                }
             }
+        }
+
+        private void renderColorCodeReference(DrawContext context) {
+            if (currentTab == 0 && NamedLootClient.CONFIG.useManualFormatting) {
+                // Render inline di Default tab (posisi yang sudah ada)
+                renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20,
+                        this.formatField.getY() + 26, false);
+            } else if (currentTab == 1) {
+                // Advanced tab - Check if there's enough space for left side placement
+
+                int referenceBoxHeight = 320;
+                int minSpacing = 20;
+                int referenceWidth = 230;
+                int mainContentWidth = 410;
+                int referenceX = this.width / 2 - mainContentWidth / 2 - referenceWidth - minSpacing;
+                int referenceY = 120;
+                if (!needsInlineColorReference) {
+
+                    context.fillGradient(
+                            referenceX - 10, referenceY - 10,
+                            referenceX + referenceWidth + 10, referenceY + referenceBoxHeight + 10,
+                            0x80000000, 0x80202020
+                    );
+                    context.drawBorder(referenceX - 10, referenceY - 10, referenceWidth + 20, referenceBoxHeight + 20, 0x88FFFFFF);
+
+                    renderColorCodeContentAt(context, referenceX, referenceX + 110, referenceY, true);
+                }
+            }
+        }
+
+        // Helper method untuk render color code content dengan satu method saja
+        private void renderColorCodeContentAt(DrawContext context, int leftX, int rightX, int startY, boolean withTitle) {
+            int colorY = startY;
+
+            // Title hanya jika diperlukan
+            if (withTitle) {
+                context.drawTextWithShadow(this.textRenderer,
+                        Text.translatable("options.namedloot.format_codes").formatted(Formatting.UNDERLINE),
+                        leftX, colorY, 0xFFFFFF);
+                colorY += 20;
+            } else {
+                context.drawTextWithShadow(this.textRenderer,
+                        Text.translatable("options.namedloot.format_codes").formatted(Formatting.UNDERLINE),
+                        leftX, colorY, 0xFFFFFF);
+                colorY += 16;
+            }
+
+            // Color codes dalam 2 kolom
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&0 ").append(
+                    Text.literal("Black").formatted(Formatting.BLACK)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&8 ").append(
+                    Text.literal("Dark Gray").formatted(Formatting.DARK_GRAY)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&1 ").append(
+                    Text.literal("Dark Blue").formatted(Formatting.DARK_BLUE)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&9 ").append(
+                    Text.literal("Blue").formatted(Formatting.BLUE)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&2 ").append(
+                    Text.literal("Dark Green").formatted(Formatting.DARK_GREEN)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&a ").append(
+                    Text.literal("Green").formatted(Formatting.GREEN)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&3 ").append(
+                    Text.literal("Dark Aqua").formatted(Formatting.DARK_AQUA)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&b ").append(
+                    Text.literal("Aqua").formatted(Formatting.AQUA)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&4 ").append(
+                    Text.literal("Dark Red").formatted(Formatting.DARK_RED)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&c ").append(
+                    Text.literal("Red").formatted(Formatting.RED)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&5 ").append(
+                    Text.literal("Dark Purple").formatted(Formatting.DARK_PURPLE)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&d ").append(
+                    Text.literal("Light Purple").formatted(Formatting.LIGHT_PURPLE)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&6 ").append(
+                    Text.literal("Gold").formatted(Formatting.GOLD)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&e ").append(
+                    Text.literal("Yellow").formatted(Formatting.YELLOW)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&7 ").append(
+                    Text.literal("Gray").formatted(Formatting.GRAY)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&f ").append(
+                    Text.literal("White").formatted(Formatting.WHITE)), rightX, colorY, 0xFFFFFF);
+            colorY += 18;
+
+            // Formatting codes section header
+            context.drawTextWithShadow(this.textRenderer,
+                    Text.literal("Formatting Codes:").formatted(Formatting.UNDERLINE),
+                    leftX, colorY, 0xFFFFFF);
+            colorY += 16;
+
+            // Formatting codes
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&l ").append(
+                    Text.literal("Bold").formatted(Formatting.BOLD)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&n ").append(
+                    Text.literal("Underline").formatted(Formatting.UNDERLINE)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&o ").append(
+                    Text.literal("Italic").formatted(Formatting.ITALIC)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&m ").append(
+                    Text.literal("Strikethrough").formatted(Formatting.STRIKETHROUGH)), rightX, colorY, 0xFFFFFF);
+            colorY += 12;
+
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&k ").append(
+                    Text.literal("Obfuscated").formatted(Formatting.OBFUSCATED)), leftX, colorY, 0xFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, Text.literal("&r ").append(
+                    Text.literal("Reset")), rightX, colorY, 0xFFFFFF);
         }
 
         // Enhanced color preview with label and better visuals

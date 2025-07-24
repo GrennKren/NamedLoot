@@ -4,6 +4,7 @@
   "options.namedloot.section.general": "General Settings",
   "options.namedloot.section.display": "Display Options",
   "options.namedloot.section.formatting": "Text Format & Style",
+  "options.namedloot.section.advanced_rules": "Advanced Rules",
 
   "options.namedloot.vertical_offset": "Vertical Offset: %s",
   "options.namedloot.display_distance": "Display Distance: %s",
@@ -45,6 +46,14 @@
   "options.namedloot.item_background_opacity": "Item Name Background Opacity:",
   "options.namedloot.detail_background_type": "Enchantment Details Style:",
   "options.namedloot.detail_background_opacity": "Enchantment Details Background Opacity:",
+
+  "options.namedloot.add_rules": "Add Rules",
+  "options.namedloot.no_rules_help": "Click 'Add Rules' to create your first custom rule.",
+  "options.namedloot.condition": "Condition:",
+  "options.namedloot.rule_value": "Value:",
+  "options.namedloot.rule_format": "Format:",
+  "options.namedloot.add_condition": "+ Add Condition",
+  "options.namedloot.condition_and": "AND",
 
   "options.namedloot.color_code.black": "Black",
   "options.namedloot.color_code.dark_blue": "Dark Blue",

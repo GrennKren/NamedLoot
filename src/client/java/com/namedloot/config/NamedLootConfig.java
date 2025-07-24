@@ -9,6 +9,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import java.util.List;
+import java.util.ArrayList;
+
 public class NamedLootConfig {
     // Default values
     public float verticalOffset = 0.5F;
@@ -59,6 +62,16 @@ public class NamedLootConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final File CONFIG_FILE = new File("config/namedloot.json");
+
+    public static class AdvancedRule {
+        public String condition = "Contains";
+        public String value = "";
+        public String textFormat = "{name} x{count}";
+
+        public AdvancedRule() {}
+    }
+
+    public List<AdvancedRule> advancedRules = new ArrayList<>();
 
     public static NamedLootConfig load() {
         NamedLootConfig config = new NamedLootConfig();
