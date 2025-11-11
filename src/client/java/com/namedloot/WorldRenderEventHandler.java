@@ -290,7 +290,7 @@ public class WorldRenderEventHandler {
                 NamedLootClient.CONFIG.useBackgroundColor ?
                         NamedLootClient.CONFIG.backgroundColor :
                         0x00000000, // Background color if enabled, otherwise transparent
-                0xF000F0 // Full brightness light
+                0xFFF000F0 // Full brightness light
         );
 
         // Draw details background if needed, only if details should be shown
@@ -317,7 +317,7 @@ public class WorldRenderEventHandler {
         // Render details if enabled and there are details to show
         if (shouldShowDetails && !details.isEmpty()) { // Check details.isEmpty() to prevent drawing empty space
             float yOffset = 0;
-            int detailColor = 0xAAAAAA;
+            int detailColor = 0xFFAAAAAA;
 
             for (Text detail : details) {
                 textRenderer.draw(
