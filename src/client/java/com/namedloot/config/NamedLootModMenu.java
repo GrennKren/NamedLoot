@@ -2,6 +2,7 @@ package com.namedloot.config;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -930,29 +931,29 @@ public class NamedLootModMenu implements ModMenuApi {
         }
 
         @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        public boolean mouseDragged(Click click, double offsetX, double offsetY) {
             // Handle mouse dragging for scrolling
             if (isScrolling) {
-                scrollOffset = scrollOffset - (int)deltaY;
+                scrollOffset = scrollOffset - (int) offsetY;
                 // Validate the new scroll position
                 validateScrollOffset();
                 // Reinitialize all elements with the new scroll position
                 this.init();
                 return true;
             }
-            return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+            return super.mouseDragged(click, offsetX, offsetY);
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(Click click, boolean doubled) {
             // Handle tab button clicks first (before scissor area)
-            if (mouseY >= 35 && mouseY <= 55) {
-                if (mouseX >= (double) this.width / 2 - 100 && mouseX <= (double) this.width / 2 - 5) {
+            if (click.y() >= 35 && click.y() <= 55) {
+                if (click.x() >= (double) this.width / 2 - 100 && click.x() <= (double) this.width / 2 - 5) {
                     // Default tab clicked
                     currentTab = 0;
                     this.init();
                     return true;
-                } else if (mouseX >= (double) this.width / 2 + 5 && mouseX <= (double) this.width / 2 + 100) {
+                } else if (click.x() >= (double) this.width / 2 + 5 && click.x() <= (double) this.width / 2 + 100) {
                     // Advanced tab clicked
                     currentTab = 1;
                     this.init();
@@ -961,32 +962,32 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             // Handle scrollbar clicks
-            if (button == 0 && mouseX > this.width - 15) {
+            if (click.button() == 0 && click.x() > this.width - 15) {
                 isScrolling = true;
                 return true;
             }
 
             // Only handle other clicks if they're in the content area
-            if (mouseY >= 80) {
-                return super.mouseClicked(mouseX, mouseY, button);
+            if (click.y() >= 80) {
+                return super.mouseClicked(click, doubled);
             }
 
             return false;
         }
 
         @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        public boolean mouseReleased(Click click) {
             // Stop scrolling when mouse is released
-            if (button == 0) { // Left mouse button
+            if (click.button() == 0) { // Left mouse button
                 isScrolling = false;
             }
-            return super.mouseReleased(mouseX, mouseY, button);
+            return super.mouseReleased(click);
         }
 
         @Override
         public void render(DrawContext context, int mouseX, int mouseY, float delta) {
             // Render background
-            this.renderBackground(context, mouseX, mouseY, delta);
+            //this.renderBackground(context, mouseX, mouseY, delta);
 
             // Draw title
             Text titleText = Text.literal("✦ ").formatted(Formatting.GOLD)
@@ -1078,7 +1079,7 @@ public class NamedLootModMenu implements ModMenuApi {
                     0x80BBBBBB, 0x80999999
             );
 
-            context.drawBorder(scrollbarX, scrollbarY, 4, scrollbarHeight, 0x40FFFFFF);
+            context.drawStrokedRectangle(scrollbarX, scrollbarY, 4, scrollbarHeight, 0x40FFFFFF);
         }
 
         // Separate method to render color previews
@@ -1133,7 +1134,7 @@ public class NamedLootModMenu implements ModMenuApi {
                     );
 
                     // Add subtle border
-                    context.drawBorder(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
+                    context.drawStrokedRectangle(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
 
                     context.drawCenteredTextWithShadow(
                             this.textRenderer,
@@ -1166,7 +1167,7 @@ public class NamedLootModMenu implements ModMenuApi {
                             referenceX + referenceWidth + 10, referenceY + referenceBoxHeight + 10,
                             0x80000000, 0x80202020
                     );
-                    context.drawBorder(referenceX - 10, referenceY - 10, referenceWidth + 20, referenceBoxHeight + 20, 0x88FFFFFF);
+                    context.drawStrokedRectangle(referenceX - 10, referenceY - 10, referenceWidth + 20, referenceBoxHeight + 20, 0x88FFFFFF);
 
                     renderColorCodeContentAt(context, referenceX, referenceX + 110, referenceY, true);
                 }

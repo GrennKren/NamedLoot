@@ -1,10 +1,11 @@
 package com.namedloot;
 
 import com.namedloot.config.NamedLootConfig;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
@@ -31,78 +32,76 @@ import org.joml.Matrix4f;
 
 public class WorldRenderEventHandler {
 
-    public static void registerEvents() {
-        // Register the event that fires after entities are rendered
-        WorldRenderEvents.LAST.register((context) -> {
-            MinecraftClient client = MinecraftClient.getInstance();
+    public static void renderItemNameTags(Camera camera, RenderTickCounter renderTickCounter) {
+        MinecraftClient client = MinecraftClient.getInstance();
 
             // Skip if game is paused or no world is loaded
             // REMOVE the check for !NamedLootClient.CONFIG.enabled here
-            if (client.isPaused() || client.world == null) {
-                return;
-            }
+        if (client.isPaused() || client.world == null) {
+            return;
+        }
 
             // Get all item entities within range
-            List<ItemEntity> itemEntitiesToRender = new ArrayList<>();
+        List<ItemEntity> itemEntitiesToRender = new ArrayList<>();
 
             // Loop through all entities directly for compatibility
-            for (ItemEntity entity : client.world.getEntitiesByClass(ItemEntity.class,
+        for (ItemEntity entity : client.world.getEntitiesByClass(ItemEntity.class,
                     // Use a box around the camera to find item entities
                     new Box(client.gameRenderer.getCamera().getBlockPos()).expand(
                             // Use max distance from config, or default to 64 blocks
-                            NamedLootClient.CONFIG.displayDistance > 0 ?
-                                    NamedLootClient.CONFIG.displayDistance : 64),
+                        NamedLootClient.CONFIG.displayDistance > 0 ?
+                                NamedLootClient.CONFIG.displayDistance : 64),
                     // Simple predicate that accepts all item entities
-                    itemEntity -> true)) {
+                itemEntity -> true)) {
 
                 // Apply distance check if needed
-                if (NamedLootClient.CONFIG.displayDistance > 0) {
-                    double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getPos());
-                    if (distance > NamedLootClient.CONFIG.displayDistance) {
-                        continue;
-                    }
+            if (NamedLootClient.CONFIG.displayDistance > 0) {
+                    //double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getEntityPos());
+                    double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getEntityPos());
+                if (distance > NamedLootClient.CONFIG.displayDistance) {
+                    continue;
                 }
+            }
 
                 // If showNameOnHover is enabled, check if the player is looking at this entity
-                if (NamedLootClient.CONFIG.showNameOnHover) {
-                    if (isPlayerLookingAt(client, entity)) {
-                        itemEntitiesToRender.add(entity);
-                    }
-                } else {
-                    // Normal behavior - add all items
+            if (NamedLootClient.CONFIG.showNameOnHover) {
+                if (isPlayerLookingAt(client, entity)) {
                     itemEntitiesToRender.add(entity);
                 }
+            } else {
+                    // Normal behavior - add all items
+                itemEntitiesToRender.add(entity);
             }
+        }
 
             // Skip if no entities to render
-            if (itemEntitiesToRender.isEmpty()) {
-                return;
-            }
+        if (itemEntitiesToRender.isEmpty()) {
+            return;
+        }
 
-            // Get render state
-            MatrixStack matrices = context.matrixStack();
-            float tickDelta = context.tickCounter().getTickDelta(false);
+        // Get render state
+        MatrixStack matrices = new MatrixStack();
+        float tickDelta = renderTickCounter.getTickProgress(false);
 
-            TextRenderer textRenderer = client.textRenderer;
-            VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
+        TextRenderer textRenderer = client.textRenderer;
+        VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
 
             Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
 
             // Fix z position
             itemEntitiesToRender.sort(Comparator.comparingDouble(
-                    entity -> -entity.getPos().distanceTo(cameraPos)
+                    entity -> -entity.getEntityPos().distanceTo(cameraPos)
             ));
 
-            // Render all item name tags
-            for (ItemEntity entity : itemEntitiesToRender) {
-                renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
-            }
-        });
+        // Render all item name tags
+        for (ItemEntity entity : itemEntitiesToRender) {
+            renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
+        }
     }
 
     private static boolean isPlayerLookingAt(MinecraftClient client, ItemEntity entity) {
         // Get the entity's position and bounding box
-        Vec3d entityPos = entity.getPos();
+        Vec3d entityPos = entity.getEntityPos();
         Box entityBox = entity.getBoundingBox();
 
         // Get player's look vector
@@ -253,20 +252,10 @@ public class WorldRenderEventHandler {
 
         float textOffset = -textRenderer.getWidth(formattedText) / 2.0F;
 
-        // Check for detail visibility based on hover option and global/rule enablement
-        // Dulu `shouldShowDetails` hanya berdasarkan `NamedLootClient.CONFIG.showDetails`
-        // Sekarang, logika ini harusnya sama dengan `formattedText` di atas:
-        // Details hanya akan ditampilkan jika:
-        // 1. Ada advanced rule yang cocok dan diaktifkan.
-        // 2. Atau, jika no advanced rule applied DAN NamedLootClient.CONFIG.enabled = true,
-        //    maka ikuti NamedLootClient.CONFIG.showDetails.
         boolean shouldShowDetails = false;
         if (advancedRuleApplied) {
-            // Jika ada advanced rule yang 적용, kita asumsikan detail juga diizinkan berdasarkan setting individual rule jika ada
-            // Namun, karena `ruleEnabled` hanya memengaruhi format teks, kita bisa pakai `NamedLootClient.CONFIG.showDetails`
-            // Ini bisa disesuaikan jika ingin setiap rule punya setting details sendiri
-            shouldShowDetails = NamedLootClient.CONFIG.showDetails; // For advanced rules, fall back to global showDetails
-        } else if (NamedLootClient.CONFIG.enabled) { // Hanya jika global diaktifkan
+            shouldShowDetails = NamedLootClient.CONFIG.showDetails;
+        } else if (NamedLootClient.CONFIG.enabled) {
             shouldShowDetails = NamedLootClient.CONFIG.showDetails;
         }
 
@@ -354,14 +343,12 @@ public class WorldRenderEventHandler {
     }
 
     private static boolean checkCondition(NamedLootConfig.AdvancedRule rule, String name, int count) {
-        // Nilai kosong seharusnya tidak pernah cocok untuk mencegah bug.
         if (rule.value == null || rule.value.isEmpty()) {
             return false;
         }
 
         switch (rule.condition) {
             case "Contains":
-                // Pencocokan dibuat tidak case-sensitive untuk kemudahan penggunaan.
                 return name.toLowerCase().contains(rule.value.toLowerCase());
             case "Count <":
                 try {
@@ -505,7 +492,6 @@ public class WorldRenderEventHandler {
         for (int i = 0; i < format.length(); i++) {
             char c = format.charAt(i);
 
-            // Handle ampersand formatting codes
             if (c == '&' && i + 1 < format.length()) {
                 if (!currentSegment.isEmpty()) {
                     result.append(Text.literal(currentSegment.toString()).setStyle(currentStyle));
@@ -585,5 +571,4 @@ public class WorldRenderEventHandler {
             default -> currentStyle;
         };
     }
-
 }
