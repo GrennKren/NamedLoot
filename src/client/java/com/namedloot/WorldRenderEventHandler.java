@@ -1,11 +1,10 @@
 package com.namedloot;
 
 import com.namedloot.config.NamedLootConfig;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
@@ -32,59 +31,62 @@ import org.joml.Matrix4f;
 
 public class WorldRenderEventHandler {
 
-    public static void renderItemNameTags(Camera camera, RenderTickCounter renderTickCounter) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    public static void registerEvents() {
+        // Register the event that fires after entities are rendered
+        WorldRenderEvents.END_MAIN.register((context) -> {
+            MinecraftClient client = MinecraftClient.getInstance();
 
             // Skip if game is paused or no world is loaded
             // REMOVE the check for !NamedLootClient.CONFIG.enabled here
-        if (client.isPaused() || client.world == null) {
-            return;
-        }
+            if (client.isPaused() || client.world == null) {
+                return;
+            }
 
             // Get all item entities within range
-        List<ItemEntity> itemEntitiesToRender = new ArrayList<>();
+            List<ItemEntity> itemEntitiesToRender = new ArrayList<>();
 
             // Loop through all entities directly for compatibility
-        for (ItemEntity entity : client.world.getEntitiesByClass(ItemEntity.class,
+            for (ItemEntity entity : client.world.getEntitiesByClass(ItemEntity.class,
                     // Use a box around the camera to find item entities
                     new Box(client.gameRenderer.getCamera().getBlockPos()).expand(
                             // Use max distance from config, or default to 64 blocks
-                        NamedLootClient.CONFIG.displayDistance > 0 ?
-                                NamedLootClient.CONFIG.displayDistance : 64),
+                            NamedLootClient.CONFIG.displayDistance > 0 ?
+                                    NamedLootClient.CONFIG.displayDistance : 64),
                     // Simple predicate that accepts all item entities
-                itemEntity -> true)) {
+                    itemEntity -> true)) {
 
                 // Apply distance check if needed
-            if (NamedLootClient.CONFIG.displayDistance > 0) {
+                if (NamedLootClient.CONFIG.displayDistance > 0) {
                     //double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getEntityPos());
                     double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getEntityPos());
-                if (distance > NamedLootClient.CONFIG.displayDistance) {
-                    continue;
+                    if (distance > NamedLootClient.CONFIG.displayDistance) {
+                        continue;
+                    }
                 }
-            }
 
                 // If showNameOnHover is enabled, check if the player is looking at this entity
-            if (NamedLootClient.CONFIG.showNameOnHover) {
-                if (isPlayerLookingAt(client, entity)) {
+                if (NamedLootClient.CONFIG.showNameOnHover) {
+                    if (isPlayerLookingAt(client, entity)) {
+                        itemEntitiesToRender.add(entity);
+                    }
+                } else {
+                    // Normal behavior - add all items
                     itemEntitiesToRender.add(entity);
                 }
-            } else {
-                    // Normal behavior - add all items
-                itemEntitiesToRender.add(entity);
             }
-        }
 
             // Skip if no entities to render
-        if (itemEntitiesToRender.isEmpty()) {
-            return;
-        }
+            if (itemEntitiesToRender.isEmpty()) {
+                return;
+            }
 
-        // Get render state
-        MatrixStack matrices = new MatrixStack();
-        float tickDelta = renderTickCounter.getTickProgress(false);
+            // Get render state
 
-        TextRenderer textRenderer = client.textRenderer;
-        VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
+            MatrixStack matrices = context.matrices();
+            float tickDelta = client.getRenderTickCounter().getTickProgress(false);
+
+            TextRenderer textRenderer = client.textRenderer;
+            VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
 
             Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
 
@@ -93,10 +95,11 @@ public class WorldRenderEventHandler {
                     entity -> -entity.getEntityPos().distanceTo(cameraPos)
             ));
 
-        // Render all item name tags
-        for (ItemEntity entity : itemEntitiesToRender) {
-            renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
-        }
+            // Render all item name tags
+            for (ItemEntity entity : itemEntitiesToRender) {
+                renderItemNameTag(entity, matrices, immediate, client, textRenderer, tickDelta);
+            }
+        });
     }
 
     private static boolean isPlayerLookingAt(MinecraftClient client, ItemEntity entity) {
