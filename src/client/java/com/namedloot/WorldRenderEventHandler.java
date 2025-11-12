@@ -290,7 +290,7 @@ public class WorldRenderEventHandler {
                 NamedLootClient.CONFIG.useBackgroundColor ?
                         NamedLootClient.CONFIG.backgroundColor :
                         0x00000000, // Background color if enabled, otherwise transparent
-                0xFFF000F0 // Full brightness light
+                0xF000F0 // Full brightness light
         );
 
         // Draw details background if needed, only if details should be shown
