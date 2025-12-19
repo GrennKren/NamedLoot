@@ -58,7 +58,7 @@ public class WorldRenderEventHandler {
                 // Apply distance check if needed
                 if (NamedLootClient.CONFIG.displayDistance > 0) {
                     //double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getEntityPos());
-                    double distance = client.gameRenderer.getCamera().getCameraPos().distanceTo(entity.getEntityPos());
+                    double distance = client.gameRenderer.getCamera().getPos().distanceTo(entity.getEntityPos());
                     if (distance > NamedLootClient.CONFIG.displayDistance) {
                         continue;
                     }
@@ -88,7 +88,7 @@ public class WorldRenderEventHandler {
             TextRenderer textRenderer = client.textRenderer;
             VertexConsumerProvider.Immediate immediate = client.getBufferBuilders().getEntityVertexConsumers();
 
-            Vec3d cameraPos = client.gameRenderer.getCamera().getCameraPos();
+            Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
 
             // Fix z position
             itemEntitiesToRender.sort(Comparator.comparingDouble(
@@ -236,7 +236,7 @@ public class WorldRenderEventHandler {
         Vec3d interpolatedPos = entity.getLerpedPos(tickDelta);
 
         // Set camera-relative position
-        Vec3d cameraPos = client.gameRenderer.getCamera().getCameraPos();
+        Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
         matrices.translate(
                 interpolatedPos.x - cameraPos.x,
                 interpolatedPos.y - cameraPos.y + entity.getHeight() + NamedLootClient.CONFIG.verticalOffset,
@@ -379,7 +379,7 @@ public class WorldRenderEventHandler {
     private static void drawBackgroundBox(MatrixStack matrices, VertexConsumerProvider provider, float x1, float y1, float x2, float y2, int color, boolean useSeeThrough) {
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         // Select the appropriate RenderLayer based on the useSeeThrough setting
-        RenderLayer layer = useSeeThrough ? net.minecraft.client.render.RenderLayers.textBackgroundSeeThrough() : net.minecraft.client.render.RenderLayers.textBackground();
+        RenderLayer layer = useSeeThrough ? RenderLayer.getTextBackgroundSeeThrough() : RenderLayer.getTextBackground();
         VertexConsumer buffer = provider.getBuffer(layer);
 
         // Draw the quad

@@ -913,8 +913,8 @@ public class NamedLootModMenu implements ModMenuApi {
         }
 
         @Override
-        public void resize(int width, int height) {
-            super.resize(width, height);
+        public void resize(net.minecraft.client.MinecraftClient client, int width, int height) {
+            super.resize(client, width, height);
         }
 
 
