@@ -33,7 +33,7 @@ public class WorldRenderEventHandler {
 
     public static void registerEvents() {
         // Register the event that fires after entities are rendered
-        WorldRenderEvents.LAST.register((context) -> {
+        WorldRenderEvents.AFTER_ENTITIES.register((context) -> {
             MinecraftClient client = MinecraftClient.getInstance();
 
             // Skip if game is paused or no world is loaded
