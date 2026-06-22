@@ -124,6 +124,7 @@ public class WorldRenderEventHandler {
         Vec3 endPos = playerPos.add(lookVec.scale(reachDistance));
 
         // Check if the ray intersects with the entity's bounding box
+        // 26.2: AABB.clip returns Optional<Vec3>, not nullable Vec3
         var hitResult = entityBox.inflate(0.5).clip(playerPos, endPos);
 
         if (hitResult.isEmpty()) {
@@ -303,6 +304,8 @@ public class WorldRenderEventHandler {
         // Draw details background if needed, only if details should be shown
         if (shouldShowDetails && !details.isEmpty()) {
             if (NamedLootClient.CONFIG.useBackgroundColor && NamedLootClient.CONFIG.useDetailBackgroundBox) {
+                // Box mode: draw a background rectangle using spaces with bgColor
+                // This stays in the texts phase (same as text) so text is readable on top
                 int lineHeight = 10;
                 int padding = 2;
 
@@ -311,13 +314,32 @@ public class WorldRenderEventHandler {
                         .max()
                         .orElse(0);
 
-                float xOffset = textOffset - padding;
-                float yOffset = -(details.size() * lineHeight);
-                float width   = xOffset + maxWidth + padding * 2;
-                float height  = yOffset + (details.size() * lineHeight) + padding;
+                // Build a string of spaces wide enough to cover maxWidth + padding
+                int spaceWidth = textRenderer.width(" ");
+                int numSpaces = (maxWidth + padding * 2) / Math.max(spaceWidth, 1);
+                StringBuilder spaces = new StringBuilder();
+                for (int s = 0; s < numSpaces; s++) {
+                    spaces.append(" ");
+                }
+                net.minecraft.util.FormattedCharSequence spaceSeq = Component.literal(spaces.toString()).getVisualOrderText();
 
-                drawBackgroundBox(matrices, context, xOffset, yOffset, width, height,
-                        NamedLootClient.CONFIG.detailBackgroundColor, NamedLootClient.CONFIG.useSeeThrough);
+                // Draw background lines for each detail line position
+                float yOffset = 0;
+                for (int d = 0; d < details.size(); d++) {
+                    context.submitNodeCollector().submitText(
+                            matrices,
+                            textOffset - padding,
+                            -(details.size() * 10) + 2 + yOffset,
+                            spaceSeq,
+                            false,
+                            layerType,
+                            0xF000F0,
+                            0x00000000,
+                            NamedLootClient.CONFIG.detailBackgroundColor,
+                            0
+                    );
+                    yOffset += 10;
+                }
             }
         }
 
