@@ -126,7 +126,7 @@ public class WorldRenderEventHandler {
         // Check if the ray intersects with the entity's bounding box
         var hitResult = entityBox.inflate(0.5).clip(playerPos, endPos);
 
-        if (hitResult == null) {
+        if (hitResult.isEmpty()) {
             return false; // Ray doesn't hit the entity
         }
 
@@ -451,7 +451,7 @@ public class WorldRenderEventHandler {
                     // Logic: If the item name has a built-in color (not null/white) OR rarity is NOT COMMON,
                     // use getFormattedName (maintaining built-in color and style)
                     if (existingColor != null && existingColor != TextColor.fromLegacyFormat(ChatFormatting.WHITE) || !isCommon) {
-                        formattedText.append(itemStack.getHoverName().copy());
+                        formattedText.append(itemStack.getStyledHoverName().copy());
                     } else {
                         // If there is no built-in color (or white) AND rarity is COMMON,
                         // use plain name with style from configuration
@@ -522,7 +522,7 @@ public class WorldRenderEventHandler {
                         if (!NamedLootClient.CONFIG.overrideItemColors &&
                                 (itemStack.getHoverName().getStyle().getColor() != null ||
                                         !itemStack.getRarity().equals(Rarity.COMMON))) {
-                            nameText = itemStack.getHoverName().copy();
+                            nameText = itemStack.getStyledHoverName().copy();
                         } else {
                             nameText = Component.literal(itemStack.getHoverName().getString()).setStyle(currentStyle);
                         }
