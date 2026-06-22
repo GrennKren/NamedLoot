@@ -316,7 +316,7 @@ public class WorldRenderEventHandler {
 
                 // Build a string of spaces wide enough to cover maxWidth + padding
                 int spaceWidth = textRenderer.width(" ");
-                int numSpaces = (maxWidth + padding * 2) / Math.max(spaceWidth, 1);
+                int numSpaces = (maxWidth + padding * 4) / Math.max(spaceWidth, 1);
                 StringBuilder spaces = new StringBuilder();
                 for (int s = 0; s < numSpaces; s++) {
                     spaces.append(" ");
