@@ -2,16 +2,19 @@ package com.namedloot.config;
 
 import com.terraformersmc.modmenu.api.ConfigScreenFactory;
 import com.terraformersmc.modmenu.api.ModMenuApi;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import com.namedloot.NamedLoot;
 import com.namedloot.NamedLootClient;
 import com.namedloot.WorldRenderEventHandler;
 import org.jetbrains.annotations.Nullable;
@@ -29,7 +32,7 @@ public class NamedLootModMenu implements ModMenuApi {
 
     public static class NamedLootConfigScreen extends Screen {
         private final Screen parent;
-        private TextFieldWidget formatField;
+        private EditBox formatField;
 
         private int previousHeight;
 
@@ -56,8 +59,17 @@ public class NamedLootModMenu implements ModMenuApi {
 
         private int currentTab = 0; // 0: Default, 1: Advanced
 
+        // 26.2 port: 1.21.x used `this.addDrawable((ctx, mx, my, delta) -> ...)` to
+        // register custom draw callbacks. 26.2 has no equivalent — we capture those
+        // lambdas into this list during init() and replay them inside
+        // extractRenderState() against the GuiGraphicsExtractor. Each lambda's
+        // signature is `Consumer<GuiGraphicsExtractor>` (we drop the unused
+        // mouseX/mouseY/delta args from the 1.21.x signature since our drawables
+        // never used them).
+        private final java.util.List<java.util.function.Consumer<GuiGraphicsExtractor>> deferredDraws = new java.util.ArrayList<>();
+
         public NamedLootConfigScreen(Screen parent) {
-            super(Text.translatable("text.namedloot.config"));
+            super(Component.translatable("text.namedloot.config"));
             this.parent = parent;
         }
 
@@ -70,7 +82,15 @@ public class NamedLootModMenu implements ModMenuApi {
             }
             previousHeight = this.height;
 
-            this.clearChildren();
+            this.clearWidgets();
+            // 26.2 port: also clear the deferredDraws list every init() — these
+            // replace the 1.21.x addDrawable() lambdas. The 1.21.x vanilla
+            // Screen.renderables list was cleared by clearWidgets() every init();
+            // our deferredDraws list must be cleared the same way, otherwise the
+            // drawables from previous init() calls pile up and the same text gets
+            // drawn on top of itself every frame (visible as garbled/overlapping
+            // text in the screenshot).
+            deferredDraws.clear();
 
             // Store tab buttons separately - don't add them as drawableChild yet
             // We'll render them manually in render()
@@ -104,12 +124,12 @@ public class NamedLootModMenu implements ModMenuApi {
             yPos += 24;
 
             // Vertical Offset Slider
-            SliderWidget verticalOffsetSlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
-                    Text.translatable("options.namedloot.vertical_offset", NamedLootClient.CONFIG.verticalOffset),
+            AbstractSliderButton verticalOffsetSlider = new AbstractSliderButton(this.width / 2 - 100, yPos, 200, 20,
+                    Component.translatable("options.namedloot.vertical_offset", NamedLootClient.CONFIG.verticalOffset),
                     NamedLootClient.CONFIG.verticalOffset / 2.0F) {
                 @Override
                 protected void updateMessage() {
-                    this.setMessage(Text.translatable("options.namedloot.vertical_offset",
+                    this.setMessage(Component.translatable("options.namedloot.vertical_offset",
                             String.format("%.2f", NamedLootClient.CONFIG.verticalOffset)));
                 }
 
@@ -119,27 +139,27 @@ public class NamedLootModMenu implements ModMenuApi {
                     this.updateMessage();
                 }
             };
-            this.addDrawableChild(verticalOffsetSlider);
+            this.addRenderableWidget(verticalOffsetSlider);
 
             // Reset vertical offset button
-            this.addDrawableChild(ButtonWidget.builder(
-                            Text.translatable("options.namedloot.reset"), button -> {
+            this.addRenderableWidget(Button.builder(
+                            Component.translatable("options.namedloot.reset"), button -> {
                                 NamedLootClient.CONFIG.verticalOffset = 0.5F;
                                 this.init();
-                            }).dimensions(this.width / 2 + 105, yPos, 40, 20)
-                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                            }).pos(this.width / 2 + 105, yPos).size(40, 20)
+                    .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.reset_format")))
                     .build());
             yPos += 26;
 
             // Display Distance Slider
-            SliderWidget distanceSlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
-                    Text.translatable("options.namedloot.display_distance",
+            AbstractSliderButton distanceSlider = new AbstractSliderButton(this.width / 2 - 100, yPos, 200, 20,
+                    Component.translatable("options.namedloot.display_distance",
                             NamedLootClient.CONFIG.displayDistance == 0 ? "∞" :
                                     String.format("%.1f", NamedLootClient.CONFIG.displayDistance)),
                     NamedLootClient.CONFIG.displayDistance / 64.0F) {
                 @Override
                 protected void updateMessage() {
-                    this.setMessage(Text.translatable("options.namedloot.display_distance",
+                    this.setMessage(Component.translatable("options.namedloot.display_distance",
                             NamedLootClient.CONFIG.displayDistance == 0 ? "∞" :
                                     String.format("%.1f", NamedLootClient.CONFIG.displayDistance)));
                 }
@@ -153,15 +173,15 @@ public class NamedLootModMenu implements ModMenuApi {
                     this.updateMessage();
                 }
             };
-            this.addDrawableChild(distanceSlider);
+            this.addRenderableWidget(distanceSlider);
 
             // Reset distance button
-            this.addDrawableChild(ButtonWidget.builder(
-                            Text.translatable("options.namedloot.reset"), button -> {
+            this.addRenderableWidget(Button.builder(
+                            Component.translatable("options.namedloot.reset"), button -> {
                                 NamedLootClient.CONFIG.displayDistance = 0.0F;
                                 this.init();
-                            }).dimensions(this.width / 2 + 105, yPos, 40, 20)
-                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                            }).pos(this.width / 2 + 105, yPos).size(40, 20)
+                    .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.reset_format")))
                     .build());
             yPos += 30;
 
@@ -243,17 +263,17 @@ public class NamedLootModMenu implements ModMenuApi {
                 // Item name background opacity slider
                 int labelSliderBackgroundOpacityY = yPos;
                 float opacity = ((NamedLootClient.CONFIG.backgroundColor >>> 24) & 0xFF) / 255.0F;
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.item_background_opacity"),
-                        this.width / 2 - 100, labelSliderBackgroundOpacityY, 0xFFFFFF));
+                deferredDraws.add(context -> context.text(this.font,
+                        Component.translatable("options.namedloot.item_background_opacity"),
+                        this.width / 2 - 100, labelSliderBackgroundOpacityY, 0xFFFFFFFF));
                 yPos += 16;
 
-                SliderWidget bgOpacitySlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
-                        Text.translatable("options.namedloot.background_opacity_value", (int)(opacity * 100)),
+                AbstractSliderButton bgOpacitySlider = new AbstractSliderButton(this.width / 2 - 100, yPos, 200, 20,
+                        Component.translatable("options.namedloot.background_opacity_value", (int)(opacity * 100)),
                         opacity) {
                     @Override
                     protected void updateMessage() {
-                        this.setMessage(Text.translatable("options.namedloot.background_opacity_value",
+                        this.setMessage(Component.translatable("options.namedloot.background_opacity_value",
                                 (int)(this.value * 100)));
                     }
 
@@ -265,28 +285,28 @@ public class NamedLootModMenu implements ModMenuApi {
                         this.updateMessage();
                     }
                 };
-                this.addDrawableChild(bgOpacitySlider);
+                this.addRenderableWidget(bgOpacitySlider);
                 yPos += 26;
 
                 // Detail background type options as radio-style buttons
                 int detailBackgroundTypeYPos = yPos;
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.detail_background_type"),
-                        this.width / 2 - 100, detailBackgroundTypeYPos, 0xFFFFFF));
+                deferredDraws.add(context -> context.text(this.font,
+                        Component.translatable("options.namedloot.detail_background_type"),
+                        this.width / 2 - 100, detailBackgroundTypeYPos, 0xFFFFFFFF));
                 yPos += 16;
 
                 // Two buttons side by side that act like radio buttons
-                ButtonWidget boxButton = ButtonWidget.builder(
-                        Text.literal("Box"), button -> {
+                Button boxButton = Button.builder(
+                        Component.literal("Box"), button -> {
                             NamedLootClient.CONFIG.useDetailBackgroundBox = true;
                             this.init();
-                        }).dimensions(this.width / 2 - 100, yPos, 95, 20).build();
+                        }).pos(this.width / 2 - 100, yPos).size(95, 20).build();
 
-                ButtonWidget inlineButton = ButtonWidget.builder(
-                        Text.literal("Inline"), button -> {
+                Button inlineButton = Button.builder(
+                        Component.literal("Inline"), button -> {
                             NamedLootClient.CONFIG.useDetailBackgroundBox = false;
                             this.init();
-                        }).dimensions(this.width / 2 + 5, yPos, 95, 20).build();
+                        }).pos(this.width / 2 + 5, yPos).size(95, 20).build();
 
                 // Visually highlight the selected option
                 if (NamedLootClient.CONFIG.useDetailBackgroundBox) {
@@ -295,24 +315,24 @@ public class NamedLootModMenu implements ModMenuApi {
                     inlineButton.active = false;
                 }
 
-                this.addDrawableChild(boxButton);
-                this.addDrawableChild(inlineButton);
+                this.addRenderableWidget(boxButton);
+                this.addRenderableWidget(inlineButton);
                 yPos += 26;
 
                 // Detail background opacity slider
                 int labelSliderDetailBackgroundOpacityY = yPos;
                 float detailOpacity = ((NamedLootClient.CONFIG.detailBackgroundColor >>> 24) & 0xFF) / 255.0F;
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.detail_background_opacity"),
-                        this.width / 2 - 100, labelSliderDetailBackgroundOpacityY, 0xFFFFFF));
+                deferredDraws.add(context -> context.text(this.font,
+                        Component.translatable("options.namedloot.detail_background_opacity"),
+                        this.width / 2 - 100, labelSliderDetailBackgroundOpacityY, 0xFFFFFFFF));
                 yPos += 16;
 
-                SliderWidget detailBgOpacitySlider = new SliderWidget(this.width / 2 - 100, yPos, 200, 20,
-                        Text.translatable("options.namedloot.background_opacity_value", (int)(detailOpacity * 100)),
+                AbstractSliderButton detailBgOpacitySlider = new AbstractSliderButton(this.width / 2 - 100, yPos, 200, 20,
+                        Component.translatable("options.namedloot.background_opacity_value", (int)(detailOpacity * 100)),
                         detailOpacity) {
                     @Override
                     protected void updateMessage() {
-                        this.setMessage(Text.translatable("options.namedloot.background_opacity_value",
+                        this.setMessage(Component.translatable("options.namedloot.background_opacity_value",
                                 (int)(this.value * 100)));
                     }
 
@@ -324,7 +344,7 @@ public class NamedLootModMenu implements ModMenuApi {
                         this.updateMessage();
                     }
                 };
-                this.addDrawableChild(detailBgOpacitySlider);
+                this.addRenderableWidget(detailBgOpacitySlider);
                 yPos += 26;
             }
 
@@ -336,8 +356,8 @@ public class NamedLootModMenu implements ModMenuApi {
             yPos += 20;
 
             // Manual formatting toggle with a more descriptive label
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.manual_formatting",
+            this.addRenderableWidget(Button.builder(
+                    Component.translatable("options.namedloot.manual_formatting",
                             NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"), button -> {
                         // If manual formatting is active, save the manual value and restore the automatic value
                         if (NamedLootClient.CONFIG.useManualFormatting) {
@@ -349,50 +369,50 @@ public class NamedLootModMenu implements ModMenuApi {
                             NamedLootClient.CONFIG.textFormat = NamedLootClient.CONFIG.manualTextFormat;
                         }
                         NamedLootClient.CONFIG.useManualFormatting = !NamedLootClient.CONFIG.useManualFormatting;
-                        button.setMessage(Text.translatable("options.namedloot.manual_formatting",
+                        button.setMessage(Component.translatable("options.namedloot.manual_formatting",
                                 NamedLootClient.CONFIG.useManualFormatting ? "ON" : "OFF"));
                         this.init();
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+                    }).pos(this.width / 2 - 100, yPos).size(200, 20).build());
             yPos += 26;
 
             // Fix the text format label and field positioning
             this.textFormatLabelYPos = yPos;
-            this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                    Text.translatable("options.namedloot.text_format"),
-                    this.width / 2 - 100, textFormatLabelYPos, 0xFFFFFF));
+            deferredDraws.add(context -> context.text(this.font,
+                    Component.translatable("options.namedloot.text_format"),
+                    this.width / 2 - 100, textFormatLabelYPos, 0xFFFFFFFF));
             yPos += 15;
 
             // Format description if manual formatting is enabled
             this.formatDescriptionYPos = yPos;
             if (NamedLootClient.CONFIG.useManualFormatting) {
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.format_description").formatted(Formatting.GRAY),
-                        this.width / 2 - 100, formatDescriptionYPos, 0xFFFFFF));
+                deferredDraws.add(context -> context.text(this.font,
+                        Component.translatable("options.namedloot.format_description").withStyle(ChatFormatting.GRAY),
+                        this.width / 2 - 100, formatDescriptionYPos, 0xFFFFFFFF));
             }
 
             yPos += 36;
 
             // Text Format Field
-            formatField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, yPos,
-                    200, 20, Text.literal(""));
+            formatField = new EditBox(this.font, this.width / 2 - 100, yPos,
+                    200, 20, Component.literal(""));
             formatField.setMaxLength(100);
-            formatField.setText(NamedLootClient.CONFIG.textFormat);
-            formatField.setChangedListener(text -> NamedLootClient.CONFIG.textFormat = text);
-            this.addDrawableChild(formatField);
+            formatField.setValue(NamedLootClient.CONFIG.textFormat);
+            formatField.setResponder(text -> NamedLootClient.CONFIG.textFormat = text);
+            this.addRenderableWidget(formatField);
 
             // Reset format button
-            this.addDrawableChild(ButtonWidget.builder(
-                            Text.translatable("options.namedloot.reset"), button -> {
+            this.addRenderableWidget(Button.builder(
+                            Component.translatable("options.namedloot.reset"), button -> {
                                 NamedLootClient.CONFIG.textFormat = "{name} x{count}";
-                                formatField.setText("{name} x{count}");
-                            }).dimensions(this.width / 2 + 105, yPos, 40, 20)
-                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                                formatField.setValue("{name} x{count}");
+                            }).pos(this.width / 2 + 105, yPos).size(40, 20)
+                    .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.reset_format")))
                     .build());
             yPos += 30;
 
             // If manual formatting is enabled, we show the color code reference
             if (NamedLootClient.CONFIG.useManualFormatting) {
-                this.addDrawable((context, mouseX, mouseY, delta) -> {
+                deferredDraws.add(context -> {
                     // Draw color code reference
                     renderColorCodeReference(context);
                 });
@@ -405,9 +425,9 @@ public class NamedLootModMenu implements ModMenuApi {
                 yPos += 15;
 
                 this.nameColorLabelYPos = yPos;
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.name_color"),
-                        this.width / 2 - 100, nameColorLabelYPos, 0xFFFFFF));
+                deferredDraws.add(context -> context.text(this.font,
+                        Component.translatable("options.namedloot.name_color"),
+                        this.width / 2 - 100, nameColorLabelYPos, 0xFFFFFFFF));
                 yPos += 16;
 
                 // Name style options as checkboxes
@@ -454,8 +474,8 @@ public class NamedLootModMenu implements ModMenuApi {
                 yPos += 26;
 
                 // Reset name color button
-                this.addDrawableChild(ButtonWidget.builder(
-                                Text.translatable("options.namedloot.reset_colors"), button -> {
+                this.addRenderableWidget(Button.builder(
+                                Component.translatable("options.namedloot.reset_colors"), button -> {
                                     NamedLootClient.CONFIG.nameRed = 1.0F;
                                     NamedLootClient.CONFIG.nameGreen = 1.0F;
                                     NamedLootClient.CONFIG.nameBlue = 1.0F;
@@ -464,8 +484,8 @@ public class NamedLootModMenu implements ModMenuApi {
                                     NamedLootClient.CONFIG.nameUnderline = false;
                                     NamedLootClient.CONFIG.nameStrikethrough = false;
                                     this.init();
-                                }).dimensions(this.width / 2 - 50, yPos, 100, 20)
-                        .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                                }).pos(this.width / 2 - 50, yPos).size(100, 20)
+                        .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.reset_format")))
                         .build());
                 yPos += 30;
 
@@ -474,9 +494,9 @@ public class NamedLootModMenu implements ModMenuApi {
                 // ==========================================================
 
                 this.countColorLabelYPos = yPos;
-                this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.count_color"),
-                        this.width / 2 - 100, countColorLabelYPos, 0xFFFFFF));
+                deferredDraws.add(context -> context.text(this.font,
+                        Component.translatable("options.namedloot.count_color"),
+                        this.width / 2 - 100, countColorLabelYPos, 0xFFFFFFFF));
                 yPos += 16;
 
                 // Count style options as checkboxes
@@ -523,8 +543,8 @@ public class NamedLootModMenu implements ModMenuApi {
                 yPos += 26;
 
                 // Reset count color button
-                this.addDrawableChild(ButtonWidget.builder(
-                                Text.translatable("options.namedloot.reset_colors"), button -> {
+                this.addRenderableWidget(Button.builder(
+                                Component.translatable("options.namedloot.reset_colors"), button -> {
                                     NamedLootClient.CONFIG.countRed = 1.0F;
                                     NamedLootClient.CONFIG.countGreen = 1.0F;
                                     NamedLootClient.CONFIG.countBlue = 1.0F;
@@ -533,20 +553,19 @@ public class NamedLootModMenu implements ModMenuApi {
                                     NamedLootClient.CONFIG.countUnderline = false;
                                     NamedLootClient.CONFIG.countStrikethrough = false;
                                     this.init();
-                                }).dimensions(this.width / 2 - 50, yPos, 100, 20)
-                        .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                                }).pos(this.width / 2 - 50, yPos).size(100, 20)
+                        .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.reset_format")))
                         .build());
                 yPos += 30;
             }
 
             // Save and close button with clearer text
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.save_and_close"), button -> {
+            this.addRenderableWidget(Button.builder(
+                    Component.translatable("options.namedloot.save_and_close"), button -> {
                         // Save config and return to previous screen
                         NamedLootClient.saveConfig();
-                        assert this.client != null;
-                        this.client.setScreen(this.parent);
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+                        this.minecraft.gui.setScreen(this.parent);
+                    }).pos(this.width / 2 - 100, yPos).size(200, 20).build());
             yPos += 20;
 
             // Set initial focus to text field
@@ -567,22 +586,22 @@ public class NamedLootModMenu implements ModMenuApi {
             yPos += 20;
 
             // Add Rules Button (adds a new rule group)
-            this.addDrawableChild(ButtonWidget.builder(
-                            Text.translatable("options.namedloot.add_rules"), button -> {
+            this.addRenderableWidget(Button.builder(
+                            Component.translatable("options.namedloot.add_rules"), button -> {
                                 NamedLootClient.CONFIG.advancedRules.add(new NamedLootConfig.AdvancedRule());
                                 this.init();
-                            }).dimensions(this.width / 2 - 50, yPos, 100, 20)
-                    .tooltip(Tooltip.of(Text.translatable("options.namedloot.add_rules")))
+                            }).pos(this.width / 2 - 50, yPos).size(100, 20)
+                    .tooltip(Tooltip.create(Component.translatable("options.namedloot.add_rules")))
                     .build());
             yPos += 30;
 
 
             if (NamedLootClient.CONFIG.advancedRules.isEmpty()) {
                 final int noRulesY = yPos;
-                this.addDrawable((context, mouseX, mouseY, delta) -> {
-                    Text helpText = Text.translatable("options.namedloot.no_rules_help").formatted(Formatting.GRAY, Formatting.ITALIC);
-                    context.drawCenteredTextWithShadow(this.textRenderer, helpText,
-                            this.width / 2, noRulesY, 0xFFFFFF);
+                deferredDraws.add(context -> {
+                    MutableComponent helpText = Component.translatable("options.namedloot.no_rules_help").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC);
+                    context.centeredText(this.font, helpText,
+                            this.width / 2, noRulesY, 0xFFFFFFFF);
                 });
                 yPos += 40;
             } else {
@@ -610,17 +629,17 @@ public class NamedLootModMenu implements ModMenuApi {
                     // --- Render Rule Header and Remove Button for the entire group ---
                     final int headerY = yPos;
                     int finalRuleDisplayIndex = ruleDisplayIndex;
-                    this.addDrawable((context, mouseX, mouseY, delta) -> {
-                        Text ruleTitle = Text.literal("Rule " + finalRuleDisplayIndex).formatted(Formatting.BOLD);
-                        context.drawTextWithShadow(this.textRenderer, ruleTitle,
+                    deferredDraws.add(context -> {
+                        MutableComponent ruleTitle = Component.literal("Rule " + finalRuleDisplayIndex).withStyle(ChatFormatting.BOLD);
+                        context.text(this.font, ruleTitle,
                                 this.width / 2 - 100, headerY, SECTION_TITLE_COLOR);
                     });
 
-                    this.addDrawableChild(ButtonWidget.builder(
-                            Text.literal("−").formatted(Formatting.RED), btn -> {
+                    this.addRenderableWidget(Button.builder(
+                            Component.literal("−").withStyle(ChatFormatting.RED), btn -> {
                                 NamedLootClient.CONFIG.advancedRules.removeAll(groupConditions);
                                 this.init();
-                            }).dimensions(this.width / 2 + 80, yPos, 20, 20).build());
+                            }).pos(this.width / 2 + 80, yPos).size(20, 20).build());
                     yPos += 25;
 
                     // Enable/Disable Toggle for this specific rule group
@@ -640,18 +659,16 @@ public class NamedLootModMenu implements ModMenuApi {
 
                         if (i > 0) {
                             final int andY = yPos;
-                            this.addDrawable((context, mouseX, mouseY, delta) ->
-                                    context.drawCenteredTextWithShadow(this.textRenderer,
-                                            Text.literal("AND").formatted(Formatting.YELLOW, Formatting.BOLD),
-                                            this.width / 2, andY, 0xFFFFFF));
+                            deferredDraws.add(context -> context.centeredText(this.font,
+                                            Component.literal("AND").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD),
+                                            this.width / 2, andY, 0xFFFFFFFF));
                             yPos += 15;
                         }
 
                         final int conditionLabelY = yPos;
-                        this.addDrawable((context, mouseX, mouseY, delta) ->
-                                context.drawTextWithShadow(this.textRenderer,
-                                        Text.translatable("options.namedloot.condition"),
-                                        this.width / 2 - 100, conditionLabelY, 0xFFFFFF));
+                        deferredDraws.add(context -> context.text(this.font,
+                                        Component.translatable("options.namedloot.condition"),
+                                        this.width / 2 - 100, conditionLabelY, 0xFFFFFFFF));
                         yPos += 16;
 
                         // Condition toggle buttons
@@ -659,36 +676,36 @@ public class NamedLootModMenu implements ModMenuApi {
                         int buttonSpacing = 5;
                         int startX = this.width / 2 - 100;
 
-                        ButtonWidget containsButton = ButtonWidget.builder(
-                                        Text.literal("Contains"), button -> {
+                        Button containsButton = Button.builder(
+                                        Component.literal("Contains"), button -> {
                                             conditionRule.condition = "Contains";
                                             this.init();
-                                        }).dimensions(startX, yPos, buttonWidth, 20)
-                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.name_match")))
+                                        }).pos(startX, yPos).size(buttonWidth, 20)
+                                .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.name_match")))
                                 .build();
 
-                        ButtonWidget countLessButton = ButtonWidget.builder(
-                                        Text.literal("Count <"), button -> {
+                        Button countLessButton = Button.builder(
+                                        Component.literal("Count <"), button -> {
                                             conditionRule.condition = "Count <";
                                             this.init();
-                                        }).dimensions(startX + (buttonWidth + buttonSpacing), yPos, buttonWidth, 20)
-                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.count_less")))
+                                        }).pos(startX + (buttonWidth + buttonSpacing), yPos).size(buttonWidth, 20)
+                                .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.count_less")))
                                 .build();
 
-                        ButtonWidget countMoreButton = ButtonWidget.builder(
-                                        Text.literal("Count >"), button -> {
+                        Button countMoreButton = Button.builder(
+                                        Component.literal("Count >"), button -> {
                                             conditionRule.condition = "Count >";
                                             this.init();
-                                        }).dimensions(startX + (buttonWidth + buttonSpacing) * 2, yPos, buttonWidth, 20)
-                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.count_more")))
+                                        }).pos(startX + (buttonWidth + buttonSpacing) * 2, yPos).size(buttonWidth, 20)
+                                .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.count_more")))
                                 .build();
 
-                        ButtonWidget countEqualButton = ButtonWidget.builder(
-                                        Text.literal("Count ="), button -> {
+                        Button countEqualButton = Button.builder(
+                                        Component.literal("Count ="), button -> {
                                             conditionRule.condition = "Count =";
                                             this.init();
-                                        }).dimensions(startX + (buttonWidth + buttonSpacing) * 3, yPos, buttonWidth, 20)
-                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.count_equal")))
+                                        }).pos(startX + (buttonWidth + buttonSpacing) * 3, yPos).size(buttonWidth, 20)
+                                .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.count_equal")))
                                 .build();
 
                         containsButton.active = !"Contains".equals(conditionRule.condition);
@@ -696,80 +713,78 @@ public class NamedLootModMenu implements ModMenuApi {
                         countMoreButton.active = !"Count >".equals(conditionRule.condition);
                         countEqualButton.active = !"Count =".equals(conditionRule.condition);
 
-                        this.addDrawableChild(containsButton);
-                        this.addDrawableChild(countLessButton);
-                        this.addDrawableChild(countMoreButton);
-                        this.addDrawableChild(countEqualButton);
+                        this.addRenderableWidget(containsButton);
+                        this.addRenderableWidget(countLessButton);
+                        this.addRenderableWidget(countMoreButton);
+                        this.addRenderableWidget(countEqualButton);
                         yPos += 26;
 
                         // Value label, text field, and the new remove condition button
                         final int valueLabelY = yPos;
-                        this.addDrawable((context, mouseX, mouseY, delta) ->
-                                context.drawTextWithShadow(this.textRenderer,
-                                        Text.translatable("options.namedloot.rule_value"),
-                                        this.width / 2 - 100, valueLabelY, 0xFFFFFF));
+                        deferredDraws.add(context -> context.text(this.font,
+                                        Component.translatable("options.namedloot.rule_value"),
+                                        this.width / 2 - 100, valueLabelY, 0xFFFFFFFF));
                         yPos += 16;
 
-                        TextFieldWidget valueField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, yPos, 180, 20, Text.literal(""));
-                        valueField.setText(conditionRule.value);
-                        valueField.setChangedListener(text -> conditionRule.value = text);
-                        this.addDrawableChild(valueField);
+                        EditBox valueField = new EditBox(this.font, this.width / 2 - 100, yPos, 180, 20, Component.literal(""));
+                        valueField.setValue(conditionRule.value);
+                        valueField.setResponder(text -> conditionRule.value = text);
+                        this.addRenderableWidget(valueField);
 
                         // New remove condition ('-') button
-                        this.addDrawableChild(ButtonWidget.builder(
-                                        Text.literal("−").formatted(Formatting.RED), button -> {
+                        this.addRenderableWidget(Button.builder(
+                                        Component.literal("−").withStyle(ChatFormatting.RED), button -> {
                                             NamedLootClient.CONFIG.advancedRules.remove(conditionIndexInConfig);
                                             // If the first rule in a group is deleted, promote the next one to be the new "leader"
                                             if (conditionIndexInConfig == groupStartIndex && groupConditions.size() > 1) {
                                                 NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = firstRuleInGroup.textFormat;
                                             }
                                             this.init();
-                                        }).dimensions(this.width / 2 + 85, yPos, 20, 20)
-                                .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.remove_condition")))
+                                        }).pos(this.width / 2 + 85, yPos).size(20, 20)
+                                .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.remove_condition")))
                                 .build());
                         yPos += 26;
                     }
 
                     // --- New Add Condition ('+') Button ---
-                    this.addDrawableChild(ButtonWidget.builder(
-                                    Text.translatable("options.namedloot.add_condition").formatted(Formatting.GREEN), button -> {
+                    this.addRenderableWidget(Button.builder(
+                                    Component.translatable("options.namedloot.add_condition").withStyle(ChatFormatting.GREEN), button -> {
                                         int insertAtIndex = groupStartIndex + groupConditions.size();
                                         NamedLootConfig.AdvancedRule newCondition = new NamedLootConfig.AdvancedRule();
                                         newCondition.textFormat = ""; // Empty format marks it as a chained condition
                                         NamedLootClient.CONFIG.advancedRules.add(insertAtIndex, newCondition);
                                         this.init();
-                                    }).dimensions(this.width / 2 - 100, yPos, 205, 20)
-                            .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.add_condition")))
+                                    }).pos(this.width / 2 - 100, yPos).size(205, 20)
+                            .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.add_condition")))
                             .build());
                     yPos += 26;
 
 
                     // --- Shared Format Field for the Rule Group ---
                     final int formatLabelY = yPos;
-                    this.addDrawable((context, mouseX, mouseY, delta) ->
-                            context.drawTextWithShadow(this.textRenderer,
-                                    Text.translatable("options.namedloot.rule_format"),
-                                    this.width / 2 - 100, formatLabelY, 0xFFFFFF));
+                    deferredDraws.add(context -> context.text(this.font,
+                                    Component.translatable("options.namedloot.rule_format"),
+                                    this.width / 2 - 100, formatLabelY, 0xFFFFFFFF));
                     yPos += 16;
 
-                    TextFieldWidget formatField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, yPos, 200, 20, Text.literal(""));
-                    formatField.setText(firstRuleInGroup.textFormat);
-                    formatField.setChangedListener(text -> NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = text);
-                    this.addDrawableChild(formatField);
+                    EditBox formatField = new EditBox(this.font, this.width / 2 - 100, yPos, 200, 20, Component.literal(""));
+                    formatField.setValue(firstRuleInGroup.textFormat);
+                    formatField.setResponder(text -> NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = text);
+                    this.addRenderableWidget(formatField);
 
-                    this.addDrawableChild(ButtonWidget.builder(
-                                    Text.translatable("options.namedloot.reset"), button -> {
+                    this.addRenderableWidget(Button.builder(
+                                    Component.translatable("options.namedloot.reset"), button -> {
                                         NamedLootClient.CONFIG.advancedRules.get(groupStartIndex).textFormat = "{name} x{count}";
                                         this.init();
-                                    }).dimensions(this.width / 2 + 105, yPos, 40, 20)
-                            .tooltip(Tooltip.of(Text.translatable("options.namedloot.tooltip.reset_format")))
+                                    }).pos(this.width / 2 + 105, yPos).size(40, 20)
+                            .tooltip(Tooltip.create(Component.translatable("options.namedloot.tooltip.reset_format")))
                             .build());
                     yPos += 26;
 
                     // Rule separator line
                     if (configRuleIndex + groupConditions.size() < NamedLootClient.CONFIG.advancedRules.size()) {
                         final int separatorY = yPos;
-                        this.addDrawable((context, mouseX, mouseY, delta) -> context.fill(this.width / 2 - 80, separatorY,
+                        deferredDraws.add(context -> context.fill(this.width / 2 - 80, separatorY,
                                 this.width / 2 + 80, separatorY + 1, 0x33FFFFFF));
                         yPos += 10;
                     }
@@ -782,12 +797,11 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             // Save and close button (consistent with default tab)
-            this.addDrawableChild(ButtonWidget.builder(
-                    Text.translatable("options.namedloot.save_and_close"), button -> {
+            this.addRenderableWidget(Button.builder(
+                    Component.translatable("options.namedloot.save_and_close"), button -> {
                         NamedLootClient.saveConfig();
-                        assert this.client != null;
-                        this.client.setScreen(this.parent);
-                    }).dimensions(this.width / 2 - 100, yPos, 200, 20).build());
+                        this.minecraft.gui.setScreen(this.parent);
+                    }).pos(this.width / 2 - 100, yPos).size(200, 20).build());
             yPos += 20;
 
             int minSpacing = 20;
@@ -805,7 +819,7 @@ public class NamedLootModMenu implements ModMenuApi {
             if (needsInlineColorReference) {
                 // Reference ditempatkan inline dengan jarak ekstra
                 int inlineY = yPos + extraTopPadding;
-                this.addDrawable((context, mouseX, mouseY, delta) -> renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20, inlineY, false));
+                deferredDraws.add(context -> renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20, inlineY, false));
                 //yPos += extraTopPadding + referenceBoxHeight;
                 computedContentHeight = finalYPos - (80 + scrollOffset) + 190;
             }else{
@@ -820,10 +834,10 @@ public class NamedLootModMenu implements ModMenuApi {
         // Helper method to draw a section header with a separator line
         private void drawSectionHeader(int yPos, String translationKey) {
             final int y = yPos;
-            this.addDrawable((context, mouseX, mouseY, delta) -> {
+            deferredDraws.add(context -> {
                 // Draw section title
-                Text sectionTitle = Text.translatable(translationKey).formatted(Formatting.BOLD);
-                context.drawTextWithShadow(this.textRenderer, sectionTitle,
+                MutableComponent sectionTitle = Component.translatable(translationKey).withStyle(ChatFormatting.BOLD);
+                context.text(this.font, sectionTitle,
                         this.width / 2 - 100, y, SECTION_TITLE_COLOR);
 
                 // Draw separator line
@@ -835,28 +849,28 @@ public class NamedLootModMenu implements ModMenuApi {
         // Helper method for adding checkboxes with consistent styling
         private void addCheckbox(String translationKey, boolean configValue, Consumer<Boolean> configSetter,
                                  int x, int y, int width, @Nullable String tooltipKey) {
-            MutableText label = Text.empty()
-                    .append(Text.literal(configValue ? "☑ " : "☐ ").formatted(Formatting.GREEN))
-                    .append(Text.translatable(translationKey));
+            MutableComponent label = Component.empty()
+                    .append(Component.literal(configValue ? "☑ " : "☐ ").withStyle(ChatFormatting.GREEN))
+                    .append(Component.translatable(translationKey));
 
-            ButtonWidget checkbox = ButtonWidget.builder(label, button -> {
+            Button checkbox = Button.builder(label, button -> {
                         boolean newState = !configValue;
                         configSetter.accept(newState);
                         this.init(); // refresh
-                    }).dimensions(x, y, width, 20)
-                    .tooltip(tooltipKey != null ? Tooltip.of(Text.translatable(tooltipKey)) : null)
+                    }).pos(x, y).size(width, 20)
+                    .tooltip(tooltipKey != null ? Tooltip.create(Component.translatable(tooltipKey)) : null)
                     .build();
 
-            this.addDrawableChild(checkbox);
+            this.addRenderableWidget(checkbox);
         }
 
         private void addNameColorSlider(int y, String type, float initialValue) {
-            SliderWidget slider = new SliderWidget(this.width / 2 - 100, y, 200, 20,
-                    Text.translatable("options.namedloot.name_" + type, (int)(initialValue * 255)),
+            AbstractSliderButton slider = new AbstractSliderButton(this.width / 2 - 100, y, 200, 20,
+                    Component.translatable("options.namedloot.name_" + type, (int)(initialValue * 255)),
                     initialValue) {
                 @Override
                 protected void updateMessage() {
-                    this.setMessage(Text.translatable("options.namedloot.name_" + type, (int)(this.value * 255)));
+                    this.setMessage(Component.translatable("options.namedloot.name_" + type, (int)(this.value * 255)));
                 }
 
                 @Override
@@ -869,16 +883,16 @@ public class NamedLootModMenu implements ModMenuApi {
                     this.updateMessage();
                 }
             };
-            this.addDrawableChild(slider);
+            this.addRenderableWidget(slider);
         }
 
         private void addCountColorSlider(int y, String type, float initialValue) {
-            SliderWidget slider = new SliderWidget(this.width / 2 - 100, y, 200, 20,
-                    Text.translatable("options.namedloot.count_" + type, (int)(initialValue * 255)),
+            AbstractSliderButton slider = new AbstractSliderButton(this.width / 2 - 100, y, 200, 20,
+                    Component.translatable("options.namedloot.count_" + type, (int)(initialValue * 255)),
                     initialValue) {
                 @Override
                 protected void updateMessage() {
-                    this.setMessage(Text.translatable("options.namedloot.count_" + type, (int)(this.value * 255)));
+                    this.setMessage(Component.translatable("options.namedloot.count_" + type, (int)(this.value * 255)));
                 }
 
                 @Override
@@ -891,7 +905,7 @@ public class NamedLootModMenu implements ModMenuApi {
                     this.updateMessage();
                 }
             };
-            this.addDrawableChild(slider);
+            this.addRenderableWidget(slider);
         }
 
         // Add a new method to ensure the scrollOffset is valid based on current dimensions
@@ -912,8 +926,8 @@ public class NamedLootModMenu implements ModMenuApi {
         }
 
         @Override
-        public void resize(net.minecraft.client.MinecraftClient client, int width, int height) {
-            super.resize(client, width, height);
+        public void resize(int width, int height) {
+            super.resize(width, height);
         }
 
 
@@ -930,29 +944,29 @@ public class NamedLootModMenu implements ModMenuApi {
         }
 
         @Override
-        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
             // Handle mouse dragging for scrolling
             if (isScrolling) {
-                scrollOffset = scrollOffset - (int)deltaY;
+                scrollOffset = scrollOffset - (int) offsetY;
                 // Validate the new scroll position
                 validateScrollOffset();
                 // Reinitialize all elements with the new scroll position
                 this.init();
                 return true;
             }
-            return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+            return super.mouseDragged(click, offsetX, offsetY);
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
             // Handle tab button clicks first (before scissor area)
-            if (mouseY >= 35 && mouseY <= 55) {
-                if (mouseX >= (double) this.width / 2 - 100 && mouseX <= (double) this.width / 2 - 5) {
+            if (click.y() >= 35 && click.y() <= 55) {
+                if (click.x() >= (double) this.width / 2 - 100 && click.x() <= (double) this.width / 2 - 5) {
                     // Default tab clicked
                     currentTab = 0;
                     this.init();
                     return true;
-                } else if (mouseX >= (double) this.width / 2 + 5 && mouseX <= (double) this.width / 2 + 100) {
+                } else if (click.x() >= (double) this.width / 2 + 5 && click.x() <= (double) this.width / 2 + 100) {
                     // Advanced tab clicked
                     currentTab = 1;
                     this.init();
@@ -961,41 +975,46 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             // Handle scrollbar clicks
-            if (button == 0 && mouseX > this.width - 15) {
+            if (click.button() == 0 && click.x() > this.width - 15) {
                 isScrolling = true;
                 return true;
             }
 
             // Only handle other clicks if they're in the content area
-            if (mouseY >= 80) {
-                return super.mouseClicked(mouseX, mouseY, button);
+            if (click.y() >= 80) {
+                return super.mouseClicked(click, doubled);
             }
 
             return false;
         }
 
         @Override
-        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        public boolean mouseReleased(MouseButtonEvent click) {
             // Stop scrolling when mouse is released
-            if (button == 0) { // Left mouse button
+            if (click.button() == 0) { // Left mouse button
                 isScrolling = false;
             }
-            return super.mouseReleased(mouseX, mouseY, button);
+            return super.mouseReleased(click);
         }
 
         @Override
-        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            // Render background
-            this.renderBackground(context, mouseX, mouseY, delta);
+        public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+            // 26.2 port: do NOT call this.extractBackground(...) here.
+            // Gui.extractRenderState already calls it before invoking our screen,
+            // and calling it again triggers `blurBeforeThisStratum` twice in the
+            // same frame, which throws IllegalStateException("Can only blur once
+            // per frame"). The 1.21.x `render(...)` had this commented out for
+            // the same reason (vanilla Screen.render would call
+            // renderBackground separately), so we preserve that behaviour.
 
             // Draw title
-            Text titleText = Text.literal("✦ ").formatted(Formatting.GOLD)
+            MutableComponent titleText = Component.literal("✦ ").withStyle(ChatFormatting.GOLD)
                     .append(this.title)
-                    .append(Text.literal(" ✦").formatted(Formatting.GOLD));
+                    .append(Component.literal(" ✦").withStyle(ChatFormatting.GOLD));
             int titleX = this.width / 2;
             int titleY = 15;
 
-            context.drawCenteredTextWithShadow(this.textRenderer, titleText, titleX, titleY, 0xFFFFFF);
+            context.centeredText(this.font, titleText, titleX, titleY, 0xFFFFFFFF);
             //context.fill(this.width / 4, titleY + 12, this.width * 3/4, titleY + 13, 0x55FFFFFF);
 
             // Render tab buttons manually (always visible, not affected by scroll)
@@ -1007,8 +1026,14 @@ public class NamedLootModMenu implements ModMenuApi {
 
             context.enableScissor(0, clipStartY, this.width, clipStartY + clipHeight);
 
+            // 26.2 port: replay all deferred draws captured during init()
+            // (replaces the 1.21.x addDrawable lambda pattern)
+            for (java.util.function.Consumer<GuiGraphicsExtractor> draw : deferredDraws) {
+                draw.accept(context);
+            }
+
             // Render all scrollable content
-            super.render(context, mouseX, mouseY, delta);
+            super.extractRenderState(context, mouseX, mouseY, delta);
 
             // Render color previews
             renderColorPreviews(context);
@@ -1024,19 +1049,19 @@ public class NamedLootModMenu implements ModMenuApi {
             }
         }
 
-        private void renderTabButtons(DrawContext context, int mouseX, int mouseY, float delta) {
+        private void renderTabButtons(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
             // Create tab buttons
-            ButtonWidget defaultButton = ButtonWidget.builder(
-                    Text.literal("Default"), button -> {
+            Button defaultButton = Button.builder(
+                    Component.literal("Default"), button -> {
                         currentTab = 0;
                         this.init();
-                    }).dimensions(this.width / 2 - 100, 35, 95, 20).build();
+                    }).pos(this.width / 2 - 100, 35).size(95, 20).build();
 
-            ButtonWidget advancedButton = ButtonWidget.builder(
-                    Text.literal("Advanced"), button -> {
+            Button advancedButton = Button.builder(
+                    Component.literal("Advanced"), button -> {
                         currentTab = 1;
                         this.init();
-                    }).dimensions(this.width / 2 + 5, 35, 95, 20).build();
+                    }).pos(this.width / 2 + 5, 35).size(95, 20).build();
 
             // Highlight active tab by making it inactive (darker)
             if (currentTab == 0) {
@@ -1046,14 +1071,14 @@ public class NamedLootModMenu implements ModMenuApi {
             }
 
             // Render buttons
-            defaultButton.render(context, mouseX, mouseY, delta);
-            advancedButton.render(context, mouseX, mouseY, delta);
+            defaultButton.extractRenderState(context, mouseX, mouseY, delta);
+            advancedButton.extractRenderState(context, mouseX, mouseY, delta);
         }
 
 
 
         // Improved scrollbar with smoother appearance
-        private void drawScrollbar(DrawContext context) {
+        private void drawScrollbar(GuiGraphicsExtractor context) {
             int visibleHeight = this.height - 80 - 25;
             float contentRatio = (float)visibleHeight / Math.max(contentHeight, 1);
             int scrollbarHeight = Math.max((int)(visibleHeight * contentRatio), 32);
@@ -1078,11 +1103,11 @@ public class NamedLootModMenu implements ModMenuApi {
                     0x80BBBBBB, 0x80999999
             );
 
-            context.drawBorder(scrollbarX, scrollbarY, 4, scrollbarHeight, 0x40FFFFFF);
+            context.outline(scrollbarX, scrollbarY, 4, scrollbarHeight, 0x40FFFFFF);
         }
 
         // Separate method to render color previews
-        private void renderColorPreviews(DrawContext context) {
+        private void renderColorPreviews(GuiGraphicsExtractor context) {
             // Only show color previews if not using manual formatting AND in Default tab
             if (currentTab == 0 && !NamedLootClient.CONFIG.useManualFormatting) {
                 // Render name color preview with gradient for a more appealing look
@@ -1117,7 +1142,7 @@ public class NamedLootModMenu implements ModMenuApi {
                 // Only render the preview if it's in the visible area
                 if (formatPreviewY > 25 && formatPreviewY < this.height - 25) {
                     // Create the preview text
-                    MutableText previewText = createPreviewText();
+                    MutableComponent previewText = createPreviewText();
 
                     // Draw the preview text in a dedicated box with a subtle gradient background
                     int boxWidth = 200;
@@ -1133,10 +1158,10 @@ public class NamedLootModMenu implements ModMenuApi {
                     );
 
                     // Add subtle border
-                    context.drawBorder(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
+                    context.outline(boxX, boxY, boxWidth, boxHeight, 0x55AAAAAA);
 
-                    context.drawCenteredTextWithShadow(
-                            this.textRenderer,
+                    context.centeredText(
+                            this.font,
                             previewText,
                             this.width / 2,
                             formatPreviewY,
@@ -1146,7 +1171,7 @@ public class NamedLootModMenu implements ModMenuApi {
             }
         }
 
-        private void renderColorCodeReference(DrawContext context) {
+        private void renderColorCodeReference(GuiGraphicsExtractor context) {
             if (currentTab == 0 && NamedLootClient.CONFIG.useManualFormatting) {
                 renderColorCodeContentAt(context, this.width / 2 - 100, this.width / 2 + 20,
                         this.formatField.getY() + 26, false);
@@ -1166,104 +1191,104 @@ public class NamedLootModMenu implements ModMenuApi {
                             referenceX + referenceWidth + 10, referenceY + referenceBoxHeight + 10,
                             0x80000000, 0x80202020
                     );
-                    context.drawBorder(referenceX - 10, referenceY - 10, referenceWidth + 20, referenceBoxHeight + 20, 0x88FFFFFF);
+                    context.outline(referenceX - 10, referenceY - 10, referenceWidth + 20, referenceBoxHeight + 20, 0x88FFFFFF);
 
                     renderColorCodeContentAt(context, referenceX, referenceX + 110, referenceY, true);
                 }
             }
         }
 
-        private void renderColorCodeContentAt(DrawContext context, int leftX, int rightX, int startY, boolean withTitle) {
+        private void renderColorCodeContentAt(GuiGraphicsExtractor context, int leftX, int rightX, int startY, boolean withTitle) {
             int colorY = startY;
 
             if (withTitle) {
-                context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.format_codes").formatted(Formatting.UNDERLINE),
-                        leftX, colorY, 0xFFFFFF);
+                context.text(this.font,
+                        Component.translatable("options.namedloot.format_codes").withStyle(ChatFormatting.UNDERLINE),
+                        leftX, colorY, 0xFFFFFFFF);
                 colorY += 20;
             } else {
-                context.drawTextWithShadow(this.textRenderer,
-                        Text.translatable("options.namedloot.format_codes").formatted(Formatting.UNDERLINE),
-                        leftX, colorY, 0xFFFFFF);
+                context.text(this.font,
+                        Component.translatable("options.namedloot.format_codes").withStyle(ChatFormatting.UNDERLINE),
+                        leftX, colorY, 0xFFFFFFFF);
                 colorY += 16;
             }
 
             // Color codes dalam 2 kolom
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&0 ").append(
-                    Text.literal("Black").formatted(Formatting.BLACK)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&8 ").append(
-                    Text.literal("Dark Gray").formatted(Formatting.DARK_GRAY)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&0 ").append(
+                    Component.literal("Black").withStyle(ChatFormatting.BLACK)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&8 ").append(
+                    Component.literal("Dark Gray").withStyle(ChatFormatting.DARK_GRAY)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&1 ").append(
-                    Text.literal("Dark Blue").formatted(Formatting.DARK_BLUE)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&9 ").append(
-                    Text.literal("Blue").formatted(Formatting.BLUE)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&1 ").append(
+                    Component.literal("Dark Blue").withStyle(ChatFormatting.DARK_BLUE)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&9 ").append(
+                    Component.literal("Blue").withStyle(ChatFormatting.BLUE)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&2 ").append(
-                    Text.literal("Dark Green").formatted(Formatting.DARK_GREEN)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&a ").append(
-                    Text.literal("Green").formatted(Formatting.GREEN)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&2 ").append(
+                    Component.literal("Dark Green").withStyle(ChatFormatting.DARK_GREEN)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&a ").append(
+                    Component.literal("Green").withStyle(ChatFormatting.GREEN)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&3 ").append(
-                    Text.literal("Dark Aqua").formatted(Formatting.DARK_AQUA)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&b ").append(
-                    Text.literal("Aqua").formatted(Formatting.AQUA)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&3 ").append(
+                    Component.literal("Dark Aqua").withStyle(ChatFormatting.DARK_AQUA)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&b ").append(
+                    Component.literal("Aqua").withStyle(ChatFormatting.AQUA)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&4 ").append(
-                    Text.literal("Dark Red").formatted(Formatting.DARK_RED)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&c ").append(
-                    Text.literal("Red").formatted(Formatting.RED)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&4 ").append(
+                    Component.literal("Dark Red").withStyle(ChatFormatting.DARK_RED)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&c ").append(
+                    Component.literal("Red").withStyle(ChatFormatting.RED)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&5 ").append(
-                    Text.literal("Dark Purple").formatted(Formatting.DARK_PURPLE)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&d ").append(
-                    Text.literal("Light Purple").formatted(Formatting.LIGHT_PURPLE)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&5 ").append(
+                    Component.literal("Dark Purple").withStyle(ChatFormatting.DARK_PURPLE)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&d ").append(
+                    Component.literal("Light Purple").withStyle(ChatFormatting.LIGHT_PURPLE)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&6 ").append(
-                    Text.literal("Gold").formatted(Formatting.GOLD)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&e ").append(
-                    Text.literal("Yellow").formatted(Formatting.YELLOW)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&6 ").append(
+                    Component.literal("Gold").withStyle(ChatFormatting.GOLD)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&e ").append(
+                    Component.literal("Yellow").withStyle(ChatFormatting.YELLOW)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&7 ").append(
-                    Text.literal("Gray").formatted(Formatting.GRAY)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&f ").append(
-                    Text.literal("White").formatted(Formatting.WHITE)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&7 ").append(
+                    Component.literal("Gray").withStyle(ChatFormatting.GRAY)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&f ").append(
+                    Component.literal("White").withStyle(ChatFormatting.WHITE)), rightX, colorY, 0xFFFFFFFF);
             colorY += 18;
 
             // Formatting codes section header
-            context.drawTextWithShadow(this.textRenderer,
-                    Text.literal("Formatting Codes:").formatted(Formatting.UNDERLINE),
-                    leftX, colorY, 0xFFFFFF);
+            context.text(this.font,
+                    Component.literal("Formatting Codes:").withStyle(ChatFormatting.UNDERLINE),
+                    leftX, colorY, 0xFFFFFFFF);
             colorY += 16;
 
             // Formatting codes
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&l ").append(
-                    Text.literal("Bold").formatted(Formatting.BOLD)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&n ").append(
-                    Text.literal("Underline").formatted(Formatting.UNDERLINE)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&l ").append(
+                    Component.literal("Bold").withStyle(ChatFormatting.BOLD)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&n ").append(
+                    Component.literal("Underline").withStyle(ChatFormatting.UNDERLINE)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&o ").append(
-                    Text.literal("Italic").formatted(Formatting.ITALIC)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&m ").append(
-                    Text.literal("Strikethrough").formatted(Formatting.STRIKETHROUGH)), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&o ").append(
+                    Component.literal("Italic").withStyle(ChatFormatting.ITALIC)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&m ").append(
+                    Component.literal("Strikethrough").withStyle(ChatFormatting.STRIKETHROUGH)), rightX, colorY, 0xFFFFFFFF);
             colorY += 12;
 
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&k ").append(
-                    Text.literal("Obfuscated").formatted(Formatting.OBFUSCATED)), leftX, colorY, 0xFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, Text.literal("&r ").append(
-                    Text.literal("Reset")), rightX, colorY, 0xFFFFFF);
+            context.text(this.font, Component.literal("&k ").append(
+                    Component.literal("Obfuscated").withStyle(ChatFormatting.OBFUSCATED)), leftX, colorY, 0xFFFFFFFF);
+            context.text(this.font, Component.literal("&r ").append(
+                    Component.literal("Reset")), rightX, colorY, 0xFFFFFFFF);
         }
 
         // Enhanced color preview with label and better visuals
-        private void drawEnhancedColorPreview(DrawContext context, int x, int y, int color) {
+        private void drawEnhancedColorPreview(GuiGraphicsExtractor context, int x, int y, int color) {
             int previewWidth = PREVIEW_SIZE;
             int previewHeight = PREVIEW_SIZE;
 
@@ -1284,13 +1309,34 @@ public class NamedLootModMenu implements ModMenuApi {
 
 
         // Create a separate method for generating the preview text
-        private MutableText createPreviewText() {
+        private MutableComponent createPreviewText() {
             // Create example ItemStack for preview
-            ItemStack previewItem = new ItemStack(net.minecraft.item.Items.DIAMOND);
-            previewItem.setCount(64);
+            // 26.2 port: `new ItemStack(Items.DIAMOND, 64)` and even
+            // `Items.DIAMOND.getDefaultInstance()` throw
+            // `NullPointerException("Components not bound yet")` if the item's
+            // vanilla registry holder hasn't had its DataComponentMap bound yet
+            // (which can happen when ModMenu opens this config screen very
+            // early in client startup). ItemStack.EMPTY is also unsafe because
+            // AirItem.getName() hits the same Holder.Reference.components() path.
+            // Fix: try the bound-safe construction; if it still throws, fall
+            // back to a plain Component.literal preview that doesn't touch any
+            // ItemStack at all.
+            ItemStack previewItem;
+            try {
+                previewItem = Items.DIAMOND.getDefaultInstance().copyWithCount(64);
+            } catch (Throwable t) {
+                NamedLoot.LOGGER.warn("NamedLoot preview: diamond item stack not yet bound, using plain-text fallback", t);
+                previewItem = null;
+            }
 
             // Use the same text formatting methods as in WorldRenderEventHandler for consistency
-            if (NamedLootClient.CONFIG.useManualFormatting) {
+            if (previewItem == null) {
+                // Plain-text fallback: substitute {name} and {count} directly so the
+                // preview row still shows something useful without touching any ItemStack.
+                String fmt = NamedLootClient.CONFIG.textFormat;
+                String preview = fmt.replace("{name}", "Diamond").replace("{count}", "64");
+                return Component.literal(preview);
+            } else if (NamedLootClient.CONFIG.useManualFormatting) {
                 // For manual formatting, use the same parsing method
                 return WorldRenderEventHandler.parseFormattedText(
                         NamedLootClient.CONFIG.textFormat,
