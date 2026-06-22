@@ -381,7 +381,7 @@ public class WorldRenderEventHandler {
         Matrix4f matrix = matrices.last().pose();
         // Select the appropriate RenderLayer based on the useSeeThrough setting
         RenderType layer = useSeeThrough ? RenderTypes.textBackgroundSeeThrough() : RenderTypes.textBackground();
-        // 26.2: submit geometry via the SubmitNodeCollector instead of a direct VertexConsumer.
+
         float red = (float)(color >> 16 & 255) / 255.0F;
         float green = (float)(color >> 8 & 255) / 255.0F;
         float blue = (float)(color & 255) / 255.0F;

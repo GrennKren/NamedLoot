@@ -59,13 +59,6 @@ public class NamedLootModMenu implements ModMenuApi {
 
         private int currentTab = 0; // 0: Default, 1: Advanced
 
-        // 26.2 port: 1.21.x used `this.addDrawable((ctx, mx, my, delta) -> ...)` to
-        // register custom draw callbacks. 26.2 has no equivalent — we capture those
-        // lambdas into this list during init() and replay them inside
-        // extractRenderState() against the GuiGraphicsExtractor. Each lambda's
-        // signature is `Consumer<GuiGraphicsExtractor>` (we drop the unused
-        // mouseX/mouseY/delta args from the 1.21.x signature since our drawables
-        // never used them).
         private final java.util.List<java.util.function.Consumer<GuiGraphicsExtractor>> deferredDraws = new java.util.ArrayList<>();
 
         public NamedLootConfigScreen(Screen parent) {
@@ -83,13 +76,6 @@ public class NamedLootModMenu implements ModMenuApi {
             previousHeight = this.height;
 
             this.clearWidgets();
-            // 26.2 port: also clear the deferredDraws list every init() — these
-            // replace the 1.21.x addDrawable() lambdas. The 1.21.x vanilla
-            // Screen.renderables list was cleared by clearWidgets() every init();
-            // our deferredDraws list must be cleared the same way, otherwise the
-            // drawables from previous init() calls pile up and the same text gets
-            // drawn on top of itself every frame (visible as garbled/overlapping
-            // text in the screenshot).
             deferredDraws.clear();
 
             // Store tab buttons separately - don't add them as drawableChild yet
@@ -999,13 +985,8 @@ public class NamedLootModMenu implements ModMenuApi {
 
         @Override
         public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-            // 26.2 port: do NOT call this.extractBackground(...) here.
-            // Gui.extractRenderState already calls it before invoking our screen,
-            // and calling it again triggers `blurBeforeThisStratum` twice in the
-            // same frame, which throws IllegalStateException("Can only blur once
-            // per frame"). The 1.21.x `render(...)` had this commented out for
-            // the same reason (vanilla Screen.render would call
-            // renderBackground separately), so we preserve that behaviour.
+            // Render background
+            //this.renderBackground(context, mouseX, mouseY, delta);
 
             // Draw title
             MutableComponent titleText = Component.literal("✦ ").withStyle(ChatFormatting.GOLD)
@@ -1026,13 +1007,11 @@ public class NamedLootModMenu implements ModMenuApi {
 
             context.enableScissor(0, clipStartY, this.width, clipStartY + clipHeight);
 
-            // 26.2 port: replay all deferred draws captured during init()
-            // (replaces the 1.21.x addDrawable lambda pattern)
+            // Render all scrollable content
             for (java.util.function.Consumer<GuiGraphicsExtractor> draw : deferredDraws) {
                 draw.accept(context);
             }
 
-            // Render all scrollable content
             super.extractRenderState(context, mouseX, mouseY, delta);
 
             // Render color previews
@@ -1311,28 +1290,15 @@ public class NamedLootModMenu implements ModMenuApi {
         // Create a separate method for generating the preview text
         private MutableComponent createPreviewText() {
             // Create example ItemStack for preview
-            // 26.2 port: `new ItemStack(Items.DIAMOND, 64)` and even
-            // `Items.DIAMOND.getDefaultInstance()` throw
-            // `NullPointerException("Components not bound yet")` if the item's
-            // vanilla registry holder hasn't had its DataComponentMap bound yet
-            // (which can happen when ModMenu opens this config screen very
-            // early in client startup). ItemStack.EMPTY is also unsafe because
-            // AirItem.getName() hits the same Holder.Reference.components() path.
-            // Fix: try the bound-safe construction; if it still throws, fall
-            // back to a plain Component.literal preview that doesn't touch any
-            // ItemStack at all.
             ItemStack previewItem;
             try {
                 previewItem = Items.DIAMOND.getDefaultInstance().copyWithCount(64);
             } catch (Throwable t) {
-                NamedLoot.LOGGER.warn("NamedLoot preview: diamond item stack not yet bound, using plain-text fallback", t);
                 previewItem = null;
             }
 
             // Use the same text formatting methods as in WorldRenderEventHandler for consistency
             if (previewItem == null) {
-                // Plain-text fallback: substitute {name} and {count} directly so the
-                // preview row still shows something useful without touching any ItemStack.
                 String fmt = NamedLootClient.CONFIG.textFormat;
                 String preview = fmt.replace("{name}", "Diamond").replace("{count}", "64");
                 return Component.literal(preview);
