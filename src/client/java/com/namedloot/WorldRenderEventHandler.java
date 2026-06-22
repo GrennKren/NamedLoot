@@ -285,10 +285,12 @@ public class WorldRenderEventHandler {
                 NamedLootClient.CONFIG.backgroundColor :
                 0x00000000; // Background color if enabled, otherwise transparent
 
+        float mainTextY = shouldShowDetails && !details.isEmpty() ? -(details.size() * 10) - 10 : 0;
+
         context.submitNodeCollector().submitText(
                 matrices,
                 textOffset,
-                shouldShowDetails && !details.isEmpty() ? -(details.size() * 10) - 10 : 0, // Adjust Y if details present
+                mainTextY, // Adjust Y if details present
                 formattedText.getVisualOrderText(),
                 false,
                 layerType,
