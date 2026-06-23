@@ -8,7 +8,7 @@ Highly configurable through an intuitive ModMenu interface - adjust colors, back
 ### General Settings
 - Vertical offset for positioning name tags
 - Adjustable display distance
-
+  
 ### Display Options
 - Toggle item color overriding
 - Show/hide item details (enchantments)
@@ -23,6 +23,6 @@ Highly configurable through an intuitive ModMenu interface - adjust colors, back
 - Control text colors, boldness, italics, underlining and strikethrough
 - Full color code support for manual formatting
 
-## Compatible With
+## Compatible With 
 - Fabric Loader
-- Minecraft 1.21.4 and 1.21.5 
+- Minecraft 1.21.4, 1.21.5, 1.21.10, 1.21.11, 26.2
